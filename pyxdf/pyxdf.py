@@ -12,6 +12,7 @@ import gzip
 import xml.etree.ElementTree as ET
 from collections import OrderedDict, defaultdict
 import logging
+from pathlib import Path
 
 import numpy as np
 
@@ -213,8 +214,13 @@ def load_xdf(filename,
     filesize = os.path.getsize(filename)
 
     # read file contents ([SomeText] below refers to items in the XDF Spec)
-    with gzip.GzipFile(filename, 'rb') if filename.endswith('.xdfz') else open(filename, 'rb') as f:
+    filename = Path(filename)  # convert to pathlib object
+    if filename.suffix == '.xdfz' or filename.suffixes == ['.xdf', '.gz']:
+        f_open = gzip.open
+    else:
+        f_open = open
 
+    with f_open(filename, 'rb') as f:
         # read [MagicCode]
         if f.read(4) != b'XDF:':
             raise Exception('not a valid XDF file: %s' % filename)
@@ -306,7 +312,7 @@ def load_xdf(filename,
                     # optionally send through the on_chunk function
                     if on_chunk is not None:
                         values, stamps, streams[StreamId] = on_chunk(values, stamps,
-                                                                     streams[StreamId], StreamId)
+                                                              streams[StreamId], StreamId)
                     # append to the time series...
                     temp[StreamId].time_series.append(values)
                     temp[StreamId].time_stamps.append(stamps)

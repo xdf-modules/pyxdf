@@ -5,7 +5,6 @@ This function is closely following the load_xdf reference implementation.
 Copyright (c) 2015-2018, Syntrogi Inc. dba Intheon
 """
 
-import collections
 import os
 import struct
 import itertools
@@ -171,7 +170,7 @@ def load_xdf(filename,
         """Temporary per-stream data."""
         def __init__(self, xml):
             """Init a new StreamData object from a stream header."""
-            fmts = collections.OrderedDict([
+            fmts = dict([
                 ('double64', np.float64),
                 ('float32', np.float32),
                 ('string', np.object),
@@ -200,8 +199,6 @@ def load_xdf(filename,
             self.tdiff = 1.0 / self.srate if self.srate > 0 else 0.0
             # pre-calc some parsing parameters for efficiency
             if self.fmt != 'string':
-                # index of the format as in channel_format_t
-                self.fmtindex = list(fmts.keys()).index(self.fmt) + 1
                 self.dtype = np.dtype(fmts[self.fmt])
                 # number of bytes to read from stream to handle one sample
                 self.samplebytes = self.nchns * self.dtype.itemsize

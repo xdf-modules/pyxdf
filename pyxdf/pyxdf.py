@@ -171,10 +171,15 @@ def load_xdf(filename,
         """Temporary per-stream data."""
         def __init__(self, xml):
             """Init a new StreamData object from a stream header."""
-            fmt2char = {'int8': 'b', 'int16': 'h', 'int32': 'i', 'int64': 'q',
-                        'float32': 'f', 'double64': 'd'}
-            fmt2nbytes = {'int8': 1, 'int16': 2, 'int32': 4, 'int64': 8,
-                          'float32': 4, 'double64': 8}
+            fmts = dict([
+                ('double64', np.float64),
+                ('float32', np.float32),
+                ('string', np.object),
+                ('int32', np.int32),
+                ('int16', np.int16),
+                ('int8', np.int8),
+                ('int64', np.int64)
+            ])
             # number of channels
             self.nchns = int(xml['info']['channel_count'][0])
             # nominal sampling rate in Hz
@@ -195,10 +200,9 @@ def load_xdf(filename,
             self.tdiff = 1.0 / self.srate if self.srate > 0 else 0.0
             # pre-calc some parsing parameters for efficiency
             if self.fmt != 'string':
+                self.dtype = np.dtype(fmts[self.fmt])
                 # number of bytes to read from stream to handle one sample
-                self.samplebytes = self.nchns * fmt2nbytes[self.fmt]
-                # format string to pass to struct.unpack() to handle one sample
-                self.structfmt = '<%s%s' % (self.nchns, fmt2char[self.fmt])
+                self.samplebytes = self.nchns * self.dtype.itemsize
 
     logger.info('Importing XDF file %s...' % filename)
     if not os.path.exists(filename):
@@ -294,7 +298,7 @@ def load_xdf(filename,
                                 values[k][ch] = raw.decode(errors='replace')
                     else:
                         # read a sample comprised of numeric values
-                        values = np.zeros((nsamples, temp[StreamId].nchns))
+                        values = np.zeros((nsamples, temp[StreamId].nchns), dtype=temp[StreamId].dtype)
                         # for each sample...
                         for k in range(nsamples):
                             # read or deduce time stamp
@@ -306,7 +310,11 @@ def load_xdf(filename,
                             temp[StreamId].last_timestamp = stamps[k]
                             # read the values
                             raw = f.read(temp[StreamId].samplebytes)
-                            values[k, :] = struct.unpack(temp[StreamId].structfmt, raw)
+                            # no fromfile(), see
+                            # https://github.com/numpy/numpy/issues/13319
+                            values[k, :] = np.frombuffer(raw,
+                                                         dtype=temp[StreamId].dtype,
+                                                         count=temp[StreamId].nchns)
                     logger.debug('  reading [%s,%s]' % (temp[StreamId].nchns,
                                                             nsamples))
                     # optionally send through the on_chunk function

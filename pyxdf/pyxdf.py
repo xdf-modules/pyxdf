@@ -534,7 +534,7 @@ def _jitter_removal(streams,
                     indices = np.arange(range_i[0], range_i[1] + 1, 1)[:, None]
                     X = np.concatenate((np.ones_like(indices), indices), axis=1)
                     y = stream.time_stamps[indices]
-                    mapping = np.linalg.lstsq(X, y, rcond=None)[0]
+                    mapping = np.linalg.lstsq(X, y, rcond=-1)[0]
                     stream.time_stamps[indices] = (mapping[0] + mapping[1] *
                                                    indices)
                     # Store num_samples and segment duration

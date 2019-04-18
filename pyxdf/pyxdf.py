@@ -306,7 +306,7 @@ def load_xdf(filename,
                     # optionally send through the on_chunk function
                     if on_chunk is not None:
                         values, stamps, streams[StreamId] = on_chunk(values, stamps,
-                                                              streams[StreamId], s)
+                                                                     streams[StreamId], StreamId)
                     # append to the time series...
                     temp[StreamId].time_series.append(values)
                     temp[StreamId].time_stamps.append(stamps)

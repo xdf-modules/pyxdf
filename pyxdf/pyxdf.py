@@ -399,8 +399,7 @@ def _xml2dict(t):
 
 
 def _scan_forward(f):
-    """Scan forward through the given file object until after the next
-    boundary chunk."""
+    """Scan forward through file object until after the next boundary chunk."""
     blocklen = 2**20
     signature = bytes([0x43, 0xA5, 0x46, 0xDC, 0xCB, 0xF5, 0x41, 0x0F,
                        0xB3, 0x0E, 0xD5, 0x46, 0x73, 0x83, 0xCB, 0xE4])
@@ -409,7 +408,7 @@ def _scan_forward(f):
         block = f.read(blocklen)
         matchpos = block.find(signature)
         if matchpos != -1:
-            f.seek(curpos + matchpos + 15)
+            f.seek(curpos + matchpos + len(signature))
             logger.debug('  scan forward found a boundary chunk.')
             break
         if len(block) < blocklen:

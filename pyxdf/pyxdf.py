@@ -333,6 +333,8 @@ def load_xdf(filename,
             # skip other chunk types (Boundary, ...)
             f.read(chunklen - 2)
 
+    f.close()
+
     # Concatenate the signal across chunks
     for stream in temp.values():
         if stream.time_stamps:

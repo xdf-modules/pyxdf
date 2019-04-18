@@ -3,6 +3,10 @@ Python library for importing Extensible Data Format (XDF)
 
 Python importer for [xdf](https://github.com/sccn/xdf).
 
+Install with `pip install pyxdf`.
+
+For the latest version, use `pip install git+https://github.com/xdf-modules/xdf-Python.git`.
+
 ## For maintainers
 
 1. For pypi

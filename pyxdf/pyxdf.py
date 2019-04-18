@@ -367,7 +367,7 @@ def _read_chunk3(f, s):
         # for each sample...
         for k in range(nsamples):
             # read or deduce time stamp
-            if struct.unpack('B', f.read(1))[0]:
+            if ord(f.read(1)):
                 stamps[k] = struct.unpack('<d', f.read(8))[0]
             else:
                 stamps[k] = (s.last_timestamp + s.tdiff)
@@ -382,7 +382,7 @@ def _read_chunk3(f, s):
         # for each sample...
         for k in range(values.shape[0]):
             # read or deduce time stamp
-            if struct.unpack('B', f.read(1))[0]:
+            if ord(f.read(1)):
                 stamps[k] = struct.unpack('<d', f.read(8))[0]
             else:
                 stamps[k] = s.last_timestamp + s.tdiff
@@ -399,9 +399,9 @@ def _read_chunk3(f, s):
 
 def _read_varlen_int(f):
     """Read a variable-length integer."""
-    nbytes = struct.unpack('B', f.read(1))[0]
+    nbytes = ord(f.read(1))
     if nbytes == 1:
-        return struct.unpack('B', f.read(1))[0]
+        return ord(f.read(1))
     elif nbytes == 4:
         return struct.unpack('<I', f.read(4))[0]
     elif nbytes == 8:

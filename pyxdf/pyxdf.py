@@ -22,6 +22,46 @@ __version__ = '1.14.0'
 logger = logging.getLogger(__name__)
 
 
+class StreamData:
+    """Temporary per-stream data."""
+
+    def __init__(self, xml):
+        """Init a new StreamData object from a stream header."""
+        fmts = dict([
+            ('double64', np.float64),
+            ('float32', np.float32),
+            ('string', np.object),
+            ('int32', np.int32),
+            ('int16', np.int16),
+            ('int8', np.int8),
+            ('int64', np.int64)
+        ])
+        # number of channels
+        self.nchns = int(xml['info']['channel_count'][0])
+        # nominal sampling rate in Hz
+        self.srate = round(float(xml['info']['nominal_srate'][0]))
+        # format string (int8, int16, int32, float32, double64, string)
+        self.fmt = xml['info']['channel_format'][0]
+        # list of time-stamp chunks (each an ndarray, in seconds)
+        self.time_stamps = []
+        # list of time-series chunks (each an ndarray or list of lists)
+        self.time_series = []
+        # list of clock offset measurement times (in seconds)
+        self.clock_times = []
+        # list of clock offset measurement values (in seconds)
+        self.clock_values = []
+        # last observed time stamp, for delta decompression
+        self.last_timestamp = 0.0
+        # nominal sampling interval, in seconds, for delta decompression
+        self.tdiff = 1.0 / self.srate if self.srate > 0 else 0.0
+        self.effective_srate = 0.0
+        # pre-calc some parsing parameters for efficiency
+        if self.fmt != 'string':
+            self.dtype = np.dtype(fmts[self.fmt])
+            # number of bytes to read from stream to handle one sample
+            self.samplebytes = self.nchns * self.dtype.itemsize
+
+
 def load_xdf(filename,
              on_chunk=None,
              synchronize_clocks=True,
@@ -167,43 +207,6 @@ def load_xdf(filename,
 
     """
 
-    class StreamData:
-        """Temporary per-stream data."""
-        def __init__(self, xml):
-            """Init a new StreamData object from a stream header."""
-            fmts = dict([
-                ('double64', np.float64),
-                ('float32', np.float32),
-                ('string', np.object),
-                ('int32', np.int32),
-                ('int16', np.int16),
-                ('int8', np.int8),
-                ('int64', np.int64)
-            ])
-            # number of channels
-            self.nchns = int(xml['info']['channel_count'][0])
-            # nominal sampling rate in Hz
-            self.srate = round(float(xml['info']['nominal_srate'][0]))
-            # format string (int8, int16, int32, float32, double64, string)
-            self.fmt = xml['info']['channel_format'][0]
-            # list of time-stamp chunks (each an ndarray, in seconds)
-            self.time_stamps = []
-            # list of time-series chunks (each an ndarray or list of lists)
-            self.time_series = []
-            # list of clock offset measurement times (in seconds)
-            self.clock_times = []
-            # list of clock offset measurement values (in seconds)
-            self.clock_values = []
-            # last observed time stamp, for delta decompression
-            self.last_timestamp = 0.0
-            # nominal sampling interval, in seconds, for delta decompression
-            self.tdiff = 1.0 / self.srate if self.srate > 0 else 0.0
-            # pre-calc some parsing parameters for efficiency
-            if self.fmt != 'string':
-                self.dtype = np.dtype(fmts[self.fmt])
-                # number of bytes to read from stream to handle one sample
-                self.samplebytes = self.nchns * self.dtype.itemsize
-
     logger.info('Importing XDF file %s...' % filename)
     if not os.path.exists(filename):
         raise Exception('file %s does not exist.' % filename)
@@ -275,46 +278,8 @@ def load_xdf(filename,
                 # read [Samples] chunk...
                 # noinspection PyBroadException
                 try:
-                    # read [NumSampleBytes], [NumSamples]
-                    nsamples = _read_varlen_int(f)
-                    # allocate space
-                    stamps = np.zeros((nsamples,))
-                    if temp[StreamId].fmt == 'string':
-                        # read a sample comprised of strings
-                        values = [[None] * temp[StreamId].nchns
-                                  for _ in range(nsamples)]
-                        # for each sample...
-                        for k in range(nsamples):
-                            # read or deduce time stamp
-                            if struct.unpack('B', f.read(1))[0]:
-                                stamps[k] = struct.unpack('<d', f.read(8))[0]
-                            else:
-                                stamps[k] = (temp[StreamId].last_timestamp +
-                                             temp[StreamId].tdiff)
-                            temp[StreamId].last_timestamp = stamps[k]
-                            # read the values
-                            for ch in range(temp[StreamId].nchns):
-                                raw = f.read(_read_varlen_int(f))
-                                values[k][ch] = raw.decode(errors='replace')
-                    else:
-                        # read a sample comprised of numeric values
-                        values = np.zeros((nsamples, temp[StreamId].nchns), dtype=temp[StreamId].dtype)
-                        # for each sample...
-                        for k in range(nsamples):
-                            # read or deduce time stamp
-                            if struct.unpack('B', f.read(1))[0]:
-                                stamps[k] = struct.unpack('<d', f.read(8))[0]
-                            else:
-                                stamps[k] = (temp[StreamId].last_timestamp +
-                                             temp[StreamId].tdiff)
-                            temp[StreamId].last_timestamp = stamps[k]
-                            # read the values
-                            raw = f.read(temp[StreamId].samplebytes)
-                            # no fromfile(), see
-                            # https://github.com/numpy/numpy/issues/13319
-                            values[k, :] = np.frombuffer(raw,
-                                                         dtype=temp[StreamId].dtype,
-                                                         count=temp[StreamId].nchns)
+                    nsamples, stamps, values = _read_chunk3(f, temp[StreamId])
+
                     logger.debug('  reading [%s,%s]' % (temp[StreamId].nchns,
                                                             nsamples))
                     # optionally send through the on_chunk function
@@ -388,6 +353,48 @@ def load_xdf(filename,
 
     streams = [s for s in streams.values()]
     return streams, fileheader
+
+
+def _read_chunk3(f, s):
+    # read [NumSampleBytes], [NumSamples]
+    nsamples = _read_varlen_int(f)
+    # allocate space
+    stamps = np.zeros((nsamples,))
+    if s.fmt == 'string':
+        # read a sample comprised of strings
+        values = [[None] * s.nchns
+                  for _ in range(nsamples)]
+        # for each sample...
+        for k in range(nsamples):
+            # read or deduce time stamp
+            if struct.unpack('B', f.read(1))[0]:
+                stamps[k] = struct.unpack('<d', f.read(8))[0]
+            else:
+                stamps[k] = (s.last_timestamp + s.tdiff)
+            s.last_timestamp = stamps[k]
+            # read the values
+            for ch in range(s.nchns):
+                raw = f.read(_read_varlen_int(f))
+                values[k][ch] = raw.decode(errors='replace')
+    else:
+        # read a sample comprised of numeric values
+        values = np.zeros((nsamples, s.nchns), dtype=s.dtype)
+        # for each sample...
+        for k in range(values.shape[0]):
+            # read or deduce time stamp
+            if struct.unpack('B', f.read(1))[0]:
+                stamps[k] = struct.unpack('<d', f.read(8))[0]
+            else:
+                stamps[k] = s.last_timestamp + s.tdiff
+            s.last_timestamp = stamps[k]
+            # read the values
+            raw = f.read(s.nchns * values.dtype.itemsize)
+            # no fromfile(), see
+            # https://github.com/numpy/numpy/issues/13319
+            values[k, :] = np.frombuffer(raw,
+                                         dtype=s.dtype,
+                                         count=s.nchns)
+    return nsamples, stamps, values
 
 
 def _read_varlen_int(f):

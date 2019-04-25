@@ -1,10 +1,14 @@
 import os
 import logging
 import pyxdf
+import sys
 
 
 logging.basicConfig(level=logging.DEBUG)  # Use logging.INFO to reduce output.
-fname = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'xdf_sample.xdf'))
+if len(sys.argv) > 1:
+    fname = sys.argv[1]
+else:
+    fname = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'xdf_sample.xdf'))
 streams, fileheader = pyxdf.load_xdf(fname)
 
 print("Found {} streams:".format(len(streams)))

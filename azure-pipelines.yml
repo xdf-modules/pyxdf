@@ -41,14 +41,10 @@ steps:
 
 # Python Twine Upload Authenticate
 # Authentication for uploading Python distributions using twine.
-# Please add '-r FeedName/EndpointName --config-file $(PYPIRC_PATH)
-# to your twine upload command. For feeds present in this organization,
-# use the feed name as the repository (-r). Otherwise, use the endpoint
-# name defined in the service connection.
 - task: TwineAuthenticate@0
   inputs:
-    artifactFeeds:  # List of Azure Artifacts feeds to authenticate with twine.
-    #externalFeeds: # Optional; List of service connections from external organizations
+    artifactFeeds: # List of Azure Artifacts feeds to authenticate with twine.
+    externalFeeds: pypi-test
 
-- script: 'twine -r {feedName/EndpointName} --config-file $(PYPIRC_PATH) --repository-url https://test.pypi.org/legacy/ dist/*'
+- script: 'twine upload -r testpypi --config-file $(PYPIRC_PATH) dist/*'
 

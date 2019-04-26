@@ -1,10 +1,8 @@
-# Python package
-# Create and test a Python package on multiple Python versions.
-# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/python
+# Run tests, build wheel, and if this is a tagged commit
+# then deploy to pypi (test for now).
 
 trigger:
-- master
+  - master
 
 pool:
   vmImage: 'Ubuntu-16.04'
@@ -28,7 +26,7 @@ steps:
 - script: |
     python -m pip install --upgrade pip wheel twine setuptools_scm
     pip install numpy
-  displayName: 'Install dependencies'
+  displayName: 'Install Dependencies'
 
 - script: |
     pip install pytest pytest-azurepipelines
@@ -37,7 +35,7 @@ steps:
 
 - script: |
     python setup.py sdist bdist_wheel
-  displayName: 'Build wheel'
+  displayName: 'Build Wheel'
 
 # Python Twine Upload Authenticate
 # Authentication for uploading Python distributions using twine.
@@ -46,5 +44,8 @@ steps:
     artifactFeeds: # List of Azure Artifacts feeds to authenticate with twine.
     externalFeeds: pypi-test
 
-- script: 'twine upload -r testpypi --config-file $(PYPIRC_PATH) dist/*'
+- script: |
+    'twine upload -r testpypi --config-file $(PYPIRC_PATH) dist/*'
+  condition: and(succeeded(), contains(variables['Build.SourceBranch'], 'refs/tags/'))
+  displayName: 'Deploy to PyPI'
 

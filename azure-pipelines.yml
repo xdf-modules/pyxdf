@@ -1,8 +1,13 @@
 # Run tests, build wheel, and if this is a tagged commit
-# then deploy to pypi (test for now).
+# beginning with v then deploy to pypi (pypi test for now).
 
 trigger:
-  - master
+  tags:
+    include:
+    - v*
+  branches:
+    include:
+    - master
 
 pool:
   vmImage: 'Ubuntu-16.04'

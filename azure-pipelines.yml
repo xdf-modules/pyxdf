@@ -47,7 +47,11 @@ steps:
     externalSources: '025cb3c4-642b-4fac-829c-fe8634f1a504'  # test-pypi
 #    externalSources: '5ba26794-ed5b-43b0-8414-7bb1416ec0ad'  # regular pypi
 
-- script: 'cat $(PYPIRC_PATH)'
+- script: |
+    cat $(PYPIRC_PATH)
+    pwd
+    ls -all
+    ls dist/*
   displayName: 'deleteme'
 
 - script: |

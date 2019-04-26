@@ -14,10 +14,9 @@ with open(path.join(here, '..', 'README.md'), encoding='utf-8') as f:
 setup(
     name='pyxdf',
 
-    # Versions should comply with PEP440.  For a discussion on single-sourcing
-    # the version across setup.py and the project code, see
-    # https://packaging.python.org/en/latest/single_source_version.html
-    version='1.14.0',
+    # Get version from git tag: https://pypi.org/project/setuptools-scm/
+    use_scm_version=True,
+    setup_requires=['setuptools_scm'],
 
     description='Python library for importing XDF (Extensible Data Format)',
     long_description=long_description,
@@ -27,7 +26,7 @@ setup(
     url='https://github.com/sccn/xdf',
 
     # Author details
-    author='Christian Kothe, Alejandro Ojeda',
+    author='Christian Kothe, Alejandro Ojeda, Tristan Stenner, Clemens Brunner',
     author_email='christiankothe@gmail.com',
 
     # Choose your license

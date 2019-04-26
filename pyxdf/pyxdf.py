@@ -17,7 +17,6 @@ from pathlib import Path
 import numpy as np
 
 __all__ = ['load_xdf']
-__version__ = '1.14.0'
 
 logger = logging.getLogger(__name__)
 

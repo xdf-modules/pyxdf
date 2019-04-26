@@ -42,12 +42,10 @@ steps:
     python setup.py sdist bdist_wheel
   displayName: 'Build Wheel'
 
-# Python Twine Upload Authenticate
-# Authentication for uploading Python distributions using twine.
 - task: TwineAuthenticate@0
   inputs:
-    artifactFeeds: # List of Azure Artifacts feeds to authenticate with twine.
-    externalFeeds: pypi-test
+    externalSources: '025cb3c4-642b-4fac-829c-fe8634f1a504'  # test-pypi
+#    externalSources: '5ba26794-ed5b-43b0-8414-7bb1416ec0ad'  # regular pypi
 
 - script: |
     'twine upload -r testpypi --config-file $(PYPIRC_PATH) dist/*'

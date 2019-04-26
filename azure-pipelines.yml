@@ -47,6 +47,9 @@ steps:
     externalSources: '025cb3c4-642b-4fac-829c-fe8634f1a504'  # test-pypi
 #    externalSources: '5ba26794-ed5b-43b0-8414-7bb1416ec0ad'  # regular pypi
 
+- script: 'cat $(PYPIRC_PATH)'
+  displayName: 'deleteme'
+
 - script: |
     'twine upload -r testpypi --config-file $(PYPIRC_PATH) dist/*'
   condition: and(succeeded(), contains(variables['Build.SourceBranch'], 'refs/tags/'))

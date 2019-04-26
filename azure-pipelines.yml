@@ -43,19 +43,12 @@ steps:
   displayName: 'Build Wheel'
 
 - task: TwineAuthenticate@0
+  condition: and(succeeded(), contains(variables['Build.SourceBranch'], 'refs/tags/'))
   inputs:
-    externalSources: '025cb3c4-642b-4fac-829c-fe8634f1a504'  # test-pypi
-#    externalSources: '5ba26794-ed5b-43b0-8414-7bb1416ec0ad'  # regular pypi
+    externalSources: '025cb3c4-642b-4fac-829c-fe8634f1a504'  # -r testpypi
+#    externalSources: '5ba26794-ed5b-43b0-8414-7bb1416ec0ad'  # -r pypi
 
-- script: |
-    cat $(PYPIRC_PATH)
-    pwd
-    ls -all
-    ls dist/*
-  displayName: 'deleteme'
-
-- script: |
-    'twine upload -r testpypi --config-file $(PYPIRC_PATH) dist/*'
+- script: 'python -m twine upload -r testpypi --config-file $(PYPIRC_PATH) --skip-existing dist/*'
   condition: and(succeeded(), contains(variables['Build.SourceBranch'], 'refs/tags/'))
   displayName: 'Deploy to PyPI'
 

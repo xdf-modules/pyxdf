@@ -1,10 +1,13 @@
-# Python package
-# Create and test a Python package on multiple Python versions.
-# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/python
+# Run tests, build wheel, and if this is a tagged commit
+# beginning with v then deploy to pypi (pypi test for now).
 
 trigger:
-- master
+  tags:
+    include:
+    - v*
+  branches:
+    include:
+    - master
 
 pool:
   vmImage: 'Ubuntu-16.04'
@@ -27,8 +30,8 @@ steps:
 
 - script: |
     python -m pip install --upgrade pip wheel twine setuptools_scm
-  displayName: 'Install dependencies'
-# pip install -r requirements.txt
+    pip install numpy
+  displayName: 'Install Dependencies'
 
 - script: |
     pip install pytest pytest-azurepipelines
@@ -37,17 +40,15 @@ steps:
 
 - script: |
     python setup.py sdist bdist_wheel
-  displayName: 'Build wheel'
+  displayName: 'Build Wheel'
 
-# Python Twine Upload Authenticate
-# Authentication for uploading Python distributions using twine.
-# Please add '-r FeedName/EndpointName --config-file $(PYPIRC_PATH)
-# to your twine upload command. For feeds present in this organization,
-# use the feed name as the repository (-r). Otherwise, use the endpoint
-# name defined in the service connection.
 - task: TwineAuthenticate@0
+  condition: and(succeeded(), contains(variables['Build.SourceBranch'], 'refs/tags/'))
   inputs:
-    artifactFeeds:  # List of Azure Artifacts feeds to authenticate with twine.
-    #externalFeeds: # Optional; List of service connections from external organizations
+    externalSources: '025cb3c4-642b-4fac-829c-fe8634f1a504'  # -r testpypi
+#    externalSources: '5ba26794-ed5b-43b0-8414-7bb1416ec0ad'  # -r pypi
 
-- script: 'twine -r {feedName/EndpointName} --config-file $(PYPIRC_PATH) --repository-url https://test.pypi.org/legacy/ dist/*'
+- script: 'python -m twine upload -r testpypi --config-file $(PYPIRC_PATH) --skip-existing dist/*'
+  condition: and(succeeded(), contains(variables['Build.SourceBranch'], 'refs/tags/'))
+  displayName: 'Deploy to PyPI'
+

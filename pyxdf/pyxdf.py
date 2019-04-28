@@ -236,7 +236,10 @@ def load_xdf(filename,
             try:
                 # read [NumLengthBytes], [Length]
                 chunklen = _read_varlen_int(f)
-            except Exception:
+            except EOFError:
+                break
+            except Exception as e:
+                logger.exception('Error reading chunk length')
                 # If there's more data available (i.e. a read() succeeds),
                 # find the next boundary chunk
                 if f.read(1):
@@ -435,17 +438,18 @@ def _read_chunk3(f, s):
     return nsamples, stamps, values
 
 
+_read_varlen_int_buf = bytearray(1)
 def _read_varlen_int(f):
     """Read a variable-length integer."""
-    nbytes = f.read(1)
-    if nbytes == b'\x01':
+    if not f.readinto(_read_varlen_int_buf):
+        raise EOFError()
+    nbytes = _read_varlen_int_buf[0]
+    if nbytes == 1:
         return ord(f.read(1))
-    elif nbytes == b'\x04':
+    elif nbytes == 4:
         return struct.unpack('<I', f.read(4))[0]
-    elif nbytes == b'\x08':
+    elif nbytes == 8:
         return struct.unpack('<Q', f.read(8))[0]
-    elif not nbytes:  # EOF
-        raise EOFError
     else:
         raise RuntimeError('invalid variable-length integer encountered.')
 

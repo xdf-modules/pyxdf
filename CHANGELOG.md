@@ -1,4 +1,4 @@
-## [1.15.1]
+## 1.15.1
 ### Added
 - Support pathlib objects (#7).
 

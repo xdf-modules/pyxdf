@@ -1,6 +1,7 @@
 ## [1.15.1] - 2019-04-26
 ### Added
 - Support pathlib objects (#7).
+- Allow example script to be called with an optional XDF file name (e.g. `python -m pyxdf.example` or `python -m pyxdf.example xdf_file.xdf`) (#10).
 
 ### Fixed
 - Use correct data types (#2).

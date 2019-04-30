@@ -346,6 +346,7 @@ def load_xdf(filename,
     for k in streams.keys():
         stream = streams[k]
         tmp = temp[k]
+        stream['info']['stream_id'] = k
         stream['info']['effective_srate'] = tmp.effective_srate
         stream['time_series'] = tmp.time_series
         stream['time_stamps'] = tmp.time_stamps

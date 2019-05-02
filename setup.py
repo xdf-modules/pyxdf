@@ -1,4 +1,4 @@
-"""Python setup script for the pylsl distribution package."""
+"""Python setup script for the pyxdf distribution package."""
 
 from setuptools import setup, find_packages
 from codecs import open
@@ -23,7 +23,8 @@ setup(
     url='https://github.com/sccn/xdf',
 
     # Author details
-    author='Christian Kothe, Alejandro Ojeda, Tristan Stenner, Clemens Brunner',
+    author=('Christian Kothe, Alejandro Ojeda, Tristan Stenner, '
+            'Clemens Brunner'),
     author_email='christiankothe@gmail.com',
 
     # Choose your license

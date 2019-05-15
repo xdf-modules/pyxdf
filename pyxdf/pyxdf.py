@@ -346,6 +346,12 @@ def load_xdf(filename,
     for k in streams.keys():
         stream = streams[k]
         tmp = temp[k]
+        if 'stream_id' in stream['info']:  # this is non-standard
+            logger.warning('Found existing "stream_id" key with value {} in '
+                           'StreamHeader XML. Using the "stream_id" value {} '
+                           'from the beginning of the StreamHeader chunk '
+                           'instead.'.format(stream['info']['stream_id'], k))
+        stream['info']['stream_id'] = k
         stream['info']['effective_srate'] = tmp.effective_srate
         stream['time_series'] = tmp.time_series
         stream['time_stamps'] = tmp.time_stamps

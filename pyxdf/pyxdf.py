@@ -357,6 +357,7 @@ def load_xdf(filename,
         stream['time_stamps'] = tmp.time_stamps
 
     streams = [s for s in streams.values()]
+    streams.sort(key=lambda x: x["info"]["stream_id"])
     return streams, fileheader
 
 

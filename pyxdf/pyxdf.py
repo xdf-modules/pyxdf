@@ -67,6 +67,7 @@ class StreamData:
 
 
 def load_xdf(filename,
+             load_only=None,
              on_chunk=None,
              synchronize_clocks=True,
              handle_clock_resets=True,
@@ -93,6 +94,9 @@ def load_xdf(filename,
 
     Args:
         filename : name of the file to import (*.xdf or *.xdfz)
+
+        load_only : One or more stream IDs to load. If None, all streams are
+           loaded (default: None).
 
         synchronize_clocks : Whether to enable clock synchronization based on
           ClockOffset chunks. (default: true)
@@ -179,14 +183,18 @@ def load_xdf(filename,
 
     Examples:
         load the streams contained in a given XDF file
-        >>> streams, fileheader = load_xdf('C:\Recordings\myrecording.xdf')
+        >>> streams, fileheader = load_xdf('myrecording.xdf')
     """
 
     logger.info('Importing XDF file %s...' % filename)
     if not os.path.exists(filename):
         raise Exception('file %s does not exist.' % filename)
 
-    # dict of returned streams, in order of apparance, indexed by stream id
+    # load_only contains the streams to load
+    if isinstance(load_only, int):
+        load_only = [load_only]  # put single stream id into list
+
+    # dict of returned streams, in order of appearance, indexed by stream id
     streams = OrderedDict()
     # dict of per-stream temporary data (StreamData), indexed by stream id
     temp = {}
@@ -207,10 +215,8 @@ def load_xdf(filename,
         if f.read(4) != b'XDF:':
             raise Exception('not a valid XDF file: %s' % filename)
 
-        # for each chunk...
-        StreamId = None
+        # for each chunk
         while True:
-
             # noinspection PyBroadException
             try:
                 # read [NumLengthBytes], [Length]
@@ -231,8 +237,15 @@ def load_xdf(filename,
             if tag in [2, 3, 4, 6]:
                 StreamId = struct.unpack('<I', f.read(4))[0]
                 log_str += ', StreamId={}'.format(StreamId)
+            else:
+                StreamId = None
 
             logger.debug(log_str)
+
+            if StreamId is not None and load_only is not None:
+                if StreamId not in load_only:
+                    f.read(chunklen - 2 - 4)  # skip remaining chunk contents
+                    continue
 
             # read the chunk's [Content]...
             if tag == 1:

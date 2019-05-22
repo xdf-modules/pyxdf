@@ -1,8 +1,7 @@
 # Authors: Syntrogi Inc. dba Intheon
-#          Clemens Brunner
-#          Tristan Stenner
 #          Chadwick Boulay
-#          <others?>
+#          Tristan Stenner
+#          Clemens Brunner
 #
 # License: BSD (2-clause)
 # Copyright (c) 2015-2019, XDF-Python Development Team

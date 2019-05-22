@@ -95,8 +95,11 @@ def load_xdf(filename,
     Args:
         filename : name of the file to import (*.xdf or *.xdfz)
 
-        load_only : One or more stream IDs to load. If None, all streams are
-           loaded (default: None).
+        load_only : One or more stream IDs to load. This can be an integer or a
+          list of integers. For example, load_only=5 loads only the stream with
+          the stream ID 5, whereas load_only=[2, 4, 5] loads only the streams
+          with stream IDs 2, 4, and 5. If None, all streams are loaded
+          (default: None).
 
         synchronize_clocks : Whether to enable clock synchronization based on
           ClockOffset chunks. (default: true)

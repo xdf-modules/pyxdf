@@ -602,6 +602,35 @@ def _robust_fit(A, y, rho=1, iters=1000):
     return x
 
 
+def match_streaminfos(stream_infos, parameters):
+    """Find stream IDs matching specified criteria.
+
+    Parameters
+    ----------
+    stream_infos : list of dicts
+        List of dicts containing information on each stream. This information
+        can be obtained using the function resolve_streams.
+    parameters : list of dicts
+        List of dicts containing key/values that should be present in streams.
+        Examples: [{"name": "Keyboard"}] matches all streams with a "name"
+                  field equal to "Keyboard".
+                  [{"name": "Keyboard"}, {"type": "EEG"}] matches all streams
+                  with a "name" field equal to "Keyboard" and all streams with
+                  a "type" field equal to "EEG".
+    """
+    matches = []
+    for request in parameters:
+        for info in stream_infos:
+            for key in request.keys():
+                match = info[key] == request[key]
+                if not match:
+                    break
+            if match:
+                matches.append(info['stream_id'])
+
+    return list(set(matches))  # return unique values
+
+
 def resolve_streams(fname):
     """Resolve streams in given XDF file.
 
@@ -612,7 +641,7 @@ def resolve_streams(fname):
 
     Returns
     -------
-    streams : list of dicts
+    stream_infos : list of dicts
         List of dicts containing information on each stream.
     """
     return parse_chunks(parse_xdf(fname))

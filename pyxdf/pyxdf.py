@@ -1,10 +1,9 @@
-# Authors: Syntrogi Inc. dba Intheon
+# Authors: Christian Kothe & the Intheon pyxdf team
 #          Chadwick Boulay
 #          Tristan Stenner
 #          Clemens Brunner
 #
 # License: BSD (2-clause)
-# Copyright (c) 2015-2019, XDF-Python Development Team
 
 """Defines the function load_xdf, which imports XDF files.
 

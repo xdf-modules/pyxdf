@@ -8,5 +8,5 @@ try:
 except DistributionNotFound:
     # package is not installed
     __version__ = None
-from .pyxdf import load_xdf, stream_info
+from .pyxdf import load_xdf, resolve_streams
 

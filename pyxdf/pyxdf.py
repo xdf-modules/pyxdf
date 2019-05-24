@@ -602,7 +602,19 @@ def _robust_fit(A, y, rho=1, iters=1000):
     return x
 
 
-def stream_info(fname):
+def resolve_streams(fname):
+    """Resolve streams in given XDF file.
+
+    Parameters
+    ----------
+    fname : str
+        Name of the XDF file.
+
+    Returns
+    -------
+    streams : list of dicts
+        List of dicts containing information on each stream.
+    """
     return parse_chunks(parse_xdf(fname))
 
 

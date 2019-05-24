@@ -67,7 +67,7 @@ class StreamData:
 
 
 def load_xdf(filename,
-             load_only=None,
+             stream_ids=None,
              on_chunk=None,
              synchronize_clocks=True,
              handle_clock_resets=True,
@@ -95,9 +95,9 @@ def load_xdf(filename,
     Args:
         filename : name of the file to import (*.xdf or *.xdfz)
 
-        load_only : One or more stream IDs to load. This can be an integer or a
-          list of integers. For example, load_only=5 loads only the stream with
-          the stream ID 5, whereas load_only=[2, 4, 5] loads only the streams
+        stream_ids : One or more stream IDs to load. This can be an integer or
+          a list of integers. For example, load_only=5 loads only the stream
+          with stream ID 5, whereas load_only=[2, 4, 5] loads only the streams
           with stream IDs 2, 4, and 5. If None, all streams are loaded
           (default: None).
 
@@ -194,8 +194,8 @@ def load_xdf(filename,
         raise Exception('file %s does not exist.' % filename)
 
     # load_only contains the streams to load
-    if isinstance(load_only, int):
-        load_only = [load_only]  # put single stream id into list
+    if isinstance(stream_ids, int):
+        stream_ids = [stream_ids]  # put single stream id into list
 
     # dict of returned streams, in order of appearance, indexed by stream id
     streams = OrderedDict()
@@ -245,8 +245,8 @@ def load_xdf(filename,
 
             logger.debug(log_str)
 
-            if StreamId is not None and load_only is not None:
-                if StreamId not in load_only:
+            if StreamId is not None and stream_ids is not None:
+                if StreamId not in stream_ids:
                     f.read(chunklen - 2 - 4)  # skip remaining chunk contents
                     continue
 

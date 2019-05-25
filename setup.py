@@ -32,7 +32,7 @@ setup(
 
     # Author details
     author=('Christian Kothe, Tristan Stenner', 'Clemens Brunner'),
-    author_email='christiankothe@gmail.com',
+    author_email='christian.kothe@intheon.io',
 
     # Choose your license
     license='BSD',

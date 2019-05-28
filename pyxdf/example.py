@@ -1,3 +1,8 @@
+# Authors: Christian Kothe & the Intheon pyxdf team
+#          Tristan Stenner
+#
+# License: BSD (2-clause)
+
 import os
 import logging
 import pyxdf

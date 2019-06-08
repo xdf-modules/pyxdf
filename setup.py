@@ -1,5 +1,6 @@
 # Authors: Christian Kothe & the Intheon pyxdf team
 #          Chadwick Boulay
+#          Clemens Brunner
 #
 # License: BSD (2-clause)
 
@@ -28,10 +29,10 @@ setup(
     long_description_content_type="text/markdown",
 
     # The project's main homepage.
-    url='https://github.com/sccn/xdf',
+    url='https://github.com/xdf-modules/xdf-Python',
 
     # Author details
-    author=('Christian Kothe, Tristan Stenner', 'Clemens Brunner'),
+    author='Christian Kothe',
     author_email='christian.kothe@intheon.io',
 
     # Choose your license
@@ -51,7 +52,7 @@ setup(
         'Topic :: Scientific/Engineering',
 
         # Pick your license as you wish (should match "license" above)
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: BSD License',
 
         'Operating System :: Microsoft :: Windows',
         'Operating System :: POSIX :: Linux',
@@ -64,7 +65,8 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords='xdf pyxdf lsl lab streaming layer labstreaminglayer data file',
+    keywords=['XDF', 'pyxdf', 'LSL', 'Lab Streaming Layer', 'File Format',
+              'biosignals', 'stream'],
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().

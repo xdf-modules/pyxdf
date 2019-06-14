@@ -1,19 +1,14 @@
-Python library for importing Extensible Data Format (XDF)
-========================================================
+pyXDF
+=====
 
-Python importer for [xdf](https://github.com/sccn/xdf).
+pyXDF is a Python importer for [XDF](https://github.com/sccn/xdf) files.
 
-Install with `pip install pyxdf`.
+## Installation
 
-For the latest version, use `pip install git+https://github.com/xdf-modules/xdf-Python.git`.
+The latest stable version can be installed with `pip install pyxdf`.
+
+For the latest development version, use `pip install git+https://github.com/xdf-modules/xdf-Python.git`.
 
 ## For maintainers
 
-1. For pypi
-    1. `rm -Rf build dist *.egg-info` or `rmdir /S build dist pyxdf.egg-info`
-    1. `python setup.py sdist bdist_wheel`
-    1. `twine upload --repository-url https://test.pypi.org/legacy/ dist/*`
-    
-* Delete the `--repository-url` part from the above command when ready
-for permanent upload. pypi is unfriendly and requires a version bump
-for any new upload.
+A new release is automatically uploaded to PyPI. Therefore, as soon as a new release is created on GitHub (using a tag labeled e.g. `v1.16.2`), a PyPI package is created with the version number matching the release tag.

@@ -206,18 +206,7 @@ def load_xdf(filename,
     # number of bytes in the file for fault tolerance
     filesize = os.path.getsize(filename)
 
-    # read file contents ([SomeText] below refers to items in the XDF Spec)
-    filename = Path(filename)  # convert to pathlib object
-    if filename.suffix == '.xdfz' or filename.suffixes == ['.xdf', '.gz']:
-        f_open = gzip.open
-    else:
-        f_open = open
-
-    with f_open(filename, 'rb') as f:
-        # read [MagicCode]
-        if f.read(4) != b'XDF:':
-            raise Exception('not a valid XDF file: %s' % filename)
-
+    with open_xdf(filename) as f:
         # for each chunk
         while True:
             # noinspection PyBroadException
@@ -352,6 +341,18 @@ def load_xdf(filename,
     return streams, fileheader
 
 
+def open_xdf(filename):
+    """Open XDF file for reading."""
+    filename = Path(filename)  # convert to pathlib object
+    if filename.suffix == '.xdfz' or filename.suffixes == ['.xdf', '.gz']:
+        f = gzip.open(filename, 'rb')
+    else:
+        f = open(filename, 'rb')
+    if f.read(4) != b'XDF:':  # magic bytes
+        raise IOError('Invalid XDF file {}'.format(filename))
+    return f
+
+
 def _read_chunk3(f, s):
     # read [NumSampleBytes], [NumSamples]
     nsamples = _read_varlen_int(f)
@@ -403,6 +404,8 @@ def _read_varlen_int(f):
         return struct.unpack('<I', f.read(4))[0]
     elif nbytes == b'\x08':
         return struct.unpack('<Q', f.read(8))[0]
+    elif not nbytes:  # EOF
+        raise EOFError
     else:
         raise RuntimeError('invalid variable-length integer encountered.')
 
@@ -661,9 +664,7 @@ def parse_xdf(fname):
         List of all chunks contained in the XDF file.
     """
     chunks = []
-    with open(fname, "rb") as f:
-        if f.read(4) != b"XDF:":  # magic code
-            raise ValueError(f"Invalid XDF file {fname}.")
+    with open_xdf(fname) as f:
         for chunk in _read_chunks(f):
             chunks.append(chunk)
     return chunks
@@ -705,15 +706,9 @@ def _read_chunks(f):
     while True:
         chunk = dict()
         try:
-            nbytes = struct.unpack("B", f.read(1))[0]
-        except struct.error:
-            return  # reached EOF
-        if nbytes == 1:
-            chunk["nbytes"] = struct.unpack("B", f.read(1))[0]
-        elif nbytes == 4:
-            chunk["nbytes"] = struct.unpack("<I", f.read(4))[0]
-        elif nbytes == 8:
-            chunk["nbytes"] = struct.unpack("<Q", f.read(8))[0]
+            chunk["nbytes"] = _read_varlen_int(f)
+        except EOFError:
+            return
         chunk["tag"] = struct.unpack('<H', f.read(2))[0]
         if chunk["tag"] in [2, 3, 4, 6]:
             chunk["stream_id"] = struct.unpack("<I", f.read(4))[0]

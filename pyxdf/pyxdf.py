@@ -95,11 +95,18 @@ def load_xdf(filename,
     Args:
         filename : name of the file to import (*.xdf or *.xdfz)
 
-        stream_ids : One or more stream IDs to load. This can be an integer or
-          a list of integers. For example, load_only=5 loads only the stream
-          with stream ID 5, whereas load_only=[2, 4, 5] loads only the streams
-          with stream IDs 2, 4, and 5. If None, all streams are loaded
-          (default: None).
+        stream_ids : One or more stream IDs to load. This can be an integer, a
+          list of integers or a list of dicts.
+          For example, load_only=5 loads only the stream with stream ID 5,
+          whereas load_only=[2, 4, 5] loads only the streams with stream IDs 2,
+          4, and 5. If load_only=[{'type': 'EEG'}] (a list of dicts), only
+          streams matching the query will be loaded. Entries within a dict must
+          all match a stream, for example
+          load_only=[{'type': 'EEG', 'name': 'TestAMP'}] matches a stream with
+          both type 'EEG' *and* name 'TestAMP'.
+          If load_only=[{'type': 'EEG'}, {'name': 'TestAMP'}], streams matching
+          either the type *or* the name will be loaded.
+          If None, all streams are loaded (default: None).
 
         synchronize_clocks : Whether to enable clock synchronization based on
           ClockOffset chunks. (default: true)
@@ -193,9 +200,19 @@ def load_xdf(filename,
     if not os.path.exists(filename):
         raise Exception('file %s does not exist.' % filename)
 
-    # load_only contains the streams to load
+    # if stream_ids is an int or a list of int, load only streams associated
+    # with the corresponding stream IDs
+    # if stream_ids is a list of dicts, use this to query and load streams
+    # associated with these properties
     if isinstance(stream_ids, int):
         stream_ids = [stream_ids]  # put single stream id into list
+    elif all([isinstance(elem, dict) for elem in stream_ids]):  # list of dicts
+        stream_ids = match_streaminfos(resolve_streams(filename), stream_ids)
+        if not stream_ids:  # no streams found
+            raise ValueError("No matching streams found.")
+    elif not all([isinstance(elem, int) for elem in stream_ids]):  # list of ints
+        raise ValueError("Argument 'stream_ids' must be an int, a list of ints"
+                         " or a list of dicts.")
 
     # dict of returned streams, in order of appearance, indexed by stream id
     streams = OrderedDict()

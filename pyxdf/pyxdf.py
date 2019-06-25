@@ -97,16 +97,16 @@ def load_xdf(filename,
 
         stream_ids : One or more stream IDs to load. This can be an integer, a
           list of integers or a list of dicts.
-          For example, load_only=5 loads only the stream with stream ID 5,
-          whereas load_only=[2, 4, 5] loads only the streams with stream IDs 2,
-          4, and 5. If load_only=[{'type': 'EEG'}] (a list of dicts), only
-          streams matching the query will be loaded. Entries within a dict must
-          all match a stream, for example
-          load_only=[{'type': 'EEG', 'name': 'TestAMP'}] matches a stream with
-          both type 'EEG' *and* name 'TestAMP'.
-          If load_only=[{'type': 'EEG'}, {'name': 'TestAMP'}], streams matching
-          either the type *or* the name will be loaded.
-          If None, all streams are loaded (default: None).
+          For example, stream_ids=5 loads only the stream with stream ID 5,
+          whereas stream_ids=[2, 4, 5] loads only the streams with stream IDs
+          2, 4, and 5. If stream_ids=[{'type': 'EEG'}] (a list of dicts), only
+          streams matching the query will be loaded (in this example, all
+          streams of type 'EEG'). Entries within a dict must all match a
+          stream, for example stream_ids=[{'type': 'EEG', 'name': 'TestAMP'}]
+          matches a stream with both type 'EEG' *and* name 'TestAMP'. If
+          stream_ids=[{'type': 'EEG'}, {'name': 'TestAMP'}], streams matching
+          either the type *or* the name will be loaded. If None, all streams
+          are loaded (default: None).
 
         synchronize_clocks : Whether to enable clock synchronization based on
           ClockOffset chunks. (default: true)

@@ -67,7 +67,7 @@ class StreamData:
 
 
 def load_xdf(filename,
-             stream_ids=None,
+             select_streams=None,
              on_chunk=None,
              synchronize_clocks=True,
              handle_clock_resets=True,
@@ -97,16 +97,16 @@ def load_xdf(filename,
 
         stream_ids : One or more stream IDs to load. This can be an integer, a
           list of integers or a list of dicts.
-          For example, stream_ids=5 loads only the stream with stream ID 5,
-          whereas stream_ids=[2, 4, 5] loads only the streams with stream IDs
-          2, 4, and 5. If stream_ids=[{'type': 'EEG'}] (a list of dicts), only
-          streams matching the query will be loaded (in this example, all
-          streams of type 'EEG'). Entries within a dict must all match a
-          stream, for example stream_ids=[{'type': 'EEG', 'name': 'TestAMP'}]
+          For example, select_streams=5 loads only the stream with stream ID 5,
+          whereas select_streams=[2, 4, 5] loads only the streams with stream
+          IDs 2, 4, and 5. If select_streams=[{'type': 'EEG'}] (a list of
+          dicts), only streams matching the query will be loaded (in this
+          example, all streams of type 'EEG'). Entries within a dict must all
+          match a stream, select_streams=[{'type': 'EEG', 'name': 'TestAMP'}]
           matches a stream with both type 'EEG' *and* name 'TestAMP'. If
-          stream_ids=[{'type': 'EEG'}, {'name': 'TestAMP'}], streams matching
-          either the type *or* the name will be loaded. If None, all streams
-          are loaded (default: None).
+          select_streams=[{'type': 'EEG'}, {'name': 'TestAMP'}], streams
+          matching either the type *or* the name will be loaded. If None, all
+          streams are loaded (default: None).
 
         synchronize_clocks : Whether to enable clock synchronization based on
           ClockOffset chunks. (default: true)
@@ -169,10 +169,10 @@ def load_xdf(filename,
         streams : list of dicts, one for each stream; the dicts
                   have the following content:
                  ['time_series'] entry: contains the stream's time series
-                   [#Channels x #Samples] this matrix is of the type declared in
-                   ['info']['channel_format']
-                 ['time_stamps'] entry: contains the time stamps for each sample
-                   (synced across streams)
+                   [#Channels x #Samples] this matrix is of the type declared
+                   in ['info']['channel_format']
+                 ['time_stamps'] entry: contains the time stamps for each
+                   sample (synced across streams)
 
                  ['info'] field: contains the meta-data of the stream
                    (all values are strings)
@@ -200,19 +200,20 @@ def load_xdf(filename,
     if not os.path.exists(filename):
         raise Exception('file %s does not exist.' % filename)
 
-    # if stream_ids is an int or a list of int, load only streams associated
-    # with the corresponding stream IDs
-    # if stream_ids is a list of dicts, use this to query and load streams
+    # if select_streams is an int or a list of int, load only streams
+    # associated with the corresponding stream IDs
+    # if select_streams is a list of dicts, use this to query and load streams
     # associated with these properties
-    if isinstance(stream_ids, int):
-        stream_ids = [stream_ids]  # put single stream id into list
-    elif all([isinstance(elem, dict) for elem in stream_ids]):  # list of dicts
-        stream_ids = match_streaminfos(resolve_streams(filename), stream_ids)
-        if not stream_ids:  # no streams found
+    if isinstance(select_streams, int):
+        select_streams = [select_streams]
+    elif all([isinstance(elem, dict) for elem in select_streams]):
+        select_streams = match_streaminfos(resolve_streams(filename),
+                                           select_streams)
+        if not select_streams:  # no streams found
             raise ValueError("No matching streams found.")
-    elif not all([isinstance(elem, int) for elem in stream_ids]):  # list of ints
-        raise ValueError("Argument 'stream_ids' must be an int, a list of ints"
-                         " or a list of dicts.")
+    elif not all([isinstance(elem, int) for elem in select_streams]):
+        raise ValueError("Argument 'select_streams' must be an int, a list of "
+                         "ints or a list of dicts.")
 
     # dict of returned streams, in order of appearance, indexed by stream id
     streams = OrderedDict()
@@ -251,8 +252,8 @@ def load_xdf(filename,
 
             logger.debug(log_str)
 
-            if StreamId is not None and stream_ids is not None:
-                if StreamId not in stream_ids:
+            if StreamId is not None and select_streams is not None:
+                if StreamId not in select_streams:
                     f.read(chunklen - 2 - 4)  # skip remaining chunk contents
                     continue
 
@@ -282,7 +283,7 @@ def load_xdf(filename,
                     # optionally send through the on_chunk function
                     if on_chunk is not None:
                         values, stamps, streams[StreamId] = on_chunk(values, stamps,
-                                                              streams[StreamId], StreamId)
+                                                                     streams[StreamId], StreamId)
                     # append to the time series...
                     temp[StreamId].time_series.append(values)
                     temp[StreamId].time_stamps.append(stamps)

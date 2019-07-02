@@ -95,15 +95,15 @@ def load_xdf(filename,
     Args:
         filename : name of the file to import (*.xdf or *.xdfz)
 
-        stream_ids : One or more stream IDs to load. This can be an integer, a
-          list of integers or a list of dicts.
-          For example, select_streams=5 loads only the stream with stream ID 5,
-          whereas select_streams=[2, 4, 5] loads only the streams with stream
-          IDs 2, 4, and 5. If select_streams=[{'type': 'EEG'}] (a list of
-          dicts), only streams matching the query will be loaded (in this
-          example, all streams of type 'EEG'). Entries within a dict must all
-          match a stream, select_streams=[{'type': 'EEG', 'name': 'TestAMP'}]
-          matches a stream with both type 'EEG' *and* name 'TestAMP'. If
+        select_streams : One or more stream IDs to load. This can be an integer
+          integer, a list of integers or a list of dicts. For example,
+          select_streams=5 loads only the stream with stream ID 5, whereas
+          select_streams=[2, 4, 5] loads only the streams with stream IDs 2, 4,
+          and 5. If select_streams=[{'type': 'EEG'}] (a list of dicts), only
+          streams matching the query will be loaded (in this example, all
+          streams of type 'EEG'). Entries within a dict must all match a
+          stream, select_streams=[{'type': 'EEG', 'name': 'TestAMP'}] matches a
+          stream with both type 'EEG' *and* name 'TestAMP'. If
           select_streams=[{'type': 'EEG'}, {'name': 'TestAMP'}], streams
           matching either the type *or* the name will be loaded. If None, all
           streams are loaded (default: None).

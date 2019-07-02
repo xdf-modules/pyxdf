@@ -204,7 +204,9 @@ def load_xdf(filename,
     # associated with the corresponding stream IDs
     # if select_streams is a list of dicts, use this to query and load streams
     # associated with these properties
-    if isinstance(select_streams, int):
+    if select_streams is None:
+        pass
+    elif isinstance(select_streams, int):
         select_streams = [select_streams]
     elif all([isinstance(elem, dict) for elem in select_streams]):
         select_streams = match_streaminfos(resolve_streams(filename),

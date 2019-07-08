@@ -1,7 +1,10 @@
+## [Unreleased] - XXXX-XX-XX
+### Added
+- Add option to load only specific streams ([#24](https://github.com/xdf-modules/xdf-Python/pull/24) by [Clemens Brunner](https://github.com/cbrnr)).
+
 ## [1.15.2] - 2019-06-07
 ### Added
 - Store unique stream ID inside the `["info"]["stream_id"]` dict value ([#19](https://github.com/xdf-modules/xdf-Python/pull/19) by [Clemens Brunner](https://github.com/cbrnr)).
-- Add option to load only specific streams ([#24](https://github.com/xdf-modules/xdf-Python/pull/24) by [Clemens Brunner](https://github.com/cbrnr)).
 
 ## [1.15.1] - 2019-04-26
 ### Added

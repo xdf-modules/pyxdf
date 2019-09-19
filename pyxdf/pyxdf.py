@@ -551,43 +551,52 @@ def _clock_sync(streams,
 def _jitter_removal(streams,
                     break_threshold_seconds=1,
                     break_threshold_samples=500):
-    for stream in streams.values():
+    for stream_name, stream in streams.items():
+        stream.effective_srate = 0  # Reset for now. Will be recalculated if possible.
         nsamples = len(stream.time_stamps)
         if nsamples > 0 and stream.srate > 0:
-            # Identify breaks in the data
+            # Identify breaks in the time_stamps
             diffs = np.diff(stream.time_stamps)
-            breaks_at = diffs > np.max((break_threshold_seconds,
-                                        break_threshold_samples * stream.tdiff))
-            if np.any(breaks_at):
-                indices = np.where(breaks_at)[0]
-                indices = np.hstack((0, indices + 1, indices, nsamples - 1))
-                ranges = np.reshape(indices, (2, -1)).T
-            else:
-                ranges = [(0, nsamples - 1)]
+            b_breaks = diffs > np.max((break_threshold_seconds,
+                                       break_threshold_samples * stream.tdiff))
+            break_inds = np.where(b_breaks)[0] + 1  # + 1 to compensate for lost sample in np.diff
+
+            # Get indices delimiting segments without breaks.
+            # Assume 0th sample is a segment start and last sample is a segment stop.
+            seg_starts = np.hstack(([0], break_inds))
+            seg_stops = np.hstack((break_inds - 1, nsamples - 1))  # Up to this sample, inclusive
+
+            if False:
+                # Debug plot
+                import matplotlib.pyplot as plt
+                plt.plot(stream.time_stamps)
+                for xx in seg_starts:
+                    plt.axvline(xx, color='k')
+                for xx in seg_stops:
+                    plt.axvline(xx + 0.1, color='r', linestyle='--')
+                plt.show()
 
             # Process each segment separately
-            samp_counts = []
-            durations = []
-            stream.effective_srate = 0
-            for range_i in ranges:
-                if range_i[1] > range_i[0]:
-                    # Calculate time stamps assuming constant intervals within the segment.
-                    indices = np.arange(range_i[0], range_i[1] + 1, 1)[:, None]
-                    X = np.concatenate((np.ones_like(indices), indices), axis=1)
-                    y = stream.time_stamps[indices]
-                    mapping = np.linalg.lstsq(X, y, rcond=-1)[0]
-                    stream.time_stamps[indices] = (mapping[0] + mapping[1] *
-                                                   indices)
-                    # Store num_samples and segment duration
-                    samp_counts.append(indices.size)
-                    durations.append((stream.time_stamps[range_i[1]] -
-                                      stream.time_stamps[range_i[0]]) + stream.tdiff)
-            samp_counts = np.asarray(samp_counts)
-            durations = np.asarray(durations)
+            for start_ix, stop_ix in zip(seg_starts, seg_stops):
+                # Calculate time stamps assuming constant intervals within the segment.
+                indices = np.arange(start_ix, stop_ix + 1, 1)[:, None]  # +1 because we want inclusive closing range.
+                X = np.concatenate((np.ones_like(indices), indices), axis=1)
+                y = stream.time_stamps[indices]
+                mapping = np.linalg.lstsq(X, y, rcond=-1)[0]
+                stream.time_stamps[indices] = (mapping[0] + mapping[1] * indices)
+
+            # Recalculate effective_srate if possible
+            samp_counts = (seg_stops + 1) - seg_starts
             if np.any(samp_counts):
-                stream.effective_srate = np.sum(samp_counts) / np.sum(durations)
-        else:
-            stream.effective_srate = 0
+                # Calculate range segment duration
+                # We assume last sample duration was exactly 1 * stream.tdiff
+                durations = (stream.time_stamps[seg_stops] + stream.tdiff) - stream.time_stamps[seg_starts]
+                stream.effective_srate = (np.sum(samp_counts) / np.sum(durations))
+
+        if (np.abs(stream.srate - stream.effective_srate) / stream.srate) > 0.1:
+            logger.warning("Warning: Stream {} calculated effective sampling rate {} is different from "
+                           "specified rate {}.".format(stream_name, stream.effective_srate, stream.srate))
+
     return streams
 
 

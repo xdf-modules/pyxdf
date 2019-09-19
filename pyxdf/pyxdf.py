@@ -560,7 +560,7 @@ def _jitter_removal(streams,
                                         break_threshold_samples * stream.tdiff))
             if np.any(breaks_at):
                 indices = np.where(breaks_at)[0]
-                indices = np.hstack((0, indices, indices, nsamples - 1))
+                indices = np.hstack((0, indices + 1, indices, nsamples - 1))
                 ranges = np.reshape(indices, (2, -1)).T
             else:
                 ranges = [(0, nsamples - 1)]

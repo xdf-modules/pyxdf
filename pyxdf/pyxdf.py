@@ -10,7 +10,6 @@
 This function is closely following the load_xdf reference implementation.
 """
 
-import os
 import struct
 import itertools
 import gzip
@@ -198,7 +197,8 @@ def load_xdf(filename,
     """
 
     logger.info('Importing XDF file %s...' % filename)
-    if not os.path.exists(filename):
+    filename = Path(filename).resolve()  # absolute path following symlinks
+    if not filename.exists():
         raise Exception('file %s does not exist.' % filename)
 
     # if select_streams is an int or a list of int, load only streams
@@ -225,7 +225,7 @@ def load_xdf(filename,
     # XML content of the file header chunk
     fileheader = None
     # number of bytes in the file for fault tolerance
-    filesize = os.path.getsize(filename)
+    filesize = filename.stat().st_size
 
     with open_xdf(filename) as f:
         # for each chunk
@@ -364,11 +364,11 @@ def load_xdf(filename,
 
 def open_xdf(filename):
     """Open XDF file for reading."""
-    filename = Path(filename)  # convert to pathlib object
+    filename = Path(filename)  # ensure convert to pathlib object
     if filename.suffix == '.xdfz' or filename.suffixes == ['.xdf', '.gz']:
-        f = gzip.open(filename, 'rb')
+        f = gzip.open(str(filename), 'rb')
     else:
-        f = open(filename, 'rb')
+        f = open(str(filename), 'rb')
     if f.read(4) != b'XDF:':  # magic bytes
         raise IOError('Invalid XDF file {}'.format(filename))
     return f

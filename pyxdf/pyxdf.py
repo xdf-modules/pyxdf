@@ -555,8 +555,8 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
         if nsamples > 0 and stream.srate > 0:
             # Identify breaks in the time_stamps
             diffs = np.diff(stream.time_stamps)
-            b_breaks = diffs > np.max(threshold_seconds,
-                                      threshold_samples * stream.tdiff)
+            b_breaks = diffs > np.max((threshold_seconds,
+                                       threshold_samples * stream.tdiff))
             # find indices (+ 1 to compensate for lost sample in np.diff)
             break_inds = np.where(b_breaks)[0] + 1
 
@@ -585,8 +585,8 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
                 stream.effective_srate = np.sum(counts) / np.sum(durations)
 
         if np.abs(stream.srate - stream.effective_srate) / stream.srate > 0.1:
-            msg = ("Stream {}: Calculated effective sampling rate {} is "
-                   "different from specified rate {}.")
+            msg = ("Stream {}: Calculated effective sampling rate {:.4f} Hz is"
+                   " different from specified rate {} Hz.")
             logger.warning(msg.format(stream_id, stream.effective_srate,
                                       stream.srate))
 

@@ -4,7 +4,10 @@
 
 ### Fixed
 - Fixed bug in jitter removal ([#35](https://github.com/xdf-modules/xdf-python/pull/35) by [Alessandro D'Amico](https://github.com/ollie-d))
-- Add compatibility with python 3.5 by converting Pathlike objects to str for file open functions ([#37](https://github.com/xdf-modules/xdf-python/pull/37) by [hankso](https://github.com/hankso))
+- Add compatibility with Python 3.5 by converting Pathlike objects to str for file open functions ([#37](https://github.com/xdf-modules/xdf-python/pull/37) by [hankso](https://github.com/hankso))
+
+### Changed
+- Refactor jitter removal code to be more readable ([#36](https://github.com/xdf-modules/xdf-python/pull/36) by [Chadwick Boulay](https://github.com/cboulay))
 
 ## [1.15.2] - 2019-06-07
 ### Added

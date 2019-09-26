@@ -77,7 +77,8 @@ def load_xdf(filename,
              clock_reset_threshold_stds=5,
              clock_reset_threshold_offset_seconds=1,
              clock_reset_threshold_offset_stds=10,
-             winsor_threshold=0.0001):
+             winsor_threshold=0.0001,
+             verbose=None):
     """Import an XDF file.
 
     This is an importer for multi-stream XDF (Extensible Data Format)
@@ -107,6 +108,10 @@ def load_xdf(filename,
             select_streams=[{'type': 'EEG'}, {'name': 'TestAMP'}], streams
             matching either the type *or* the name will be loaded.
           - None: load all streams (default).
+
+        verbose: Passing True will set logging level to DEBUG,
+          False will set logging level to WARNING,
+          and None will use root logger level. (default: None)
 
         synchronize_clocks : Whether to enable clock synchronization based on
           ClockOffset chunks. (default: true)
@@ -195,6 +200,8 @@ def load_xdf(filename,
         load the streams contained in a given XDF file
         >>> streams, fileheader = load_xdf('myrecording.xdf')
     """
+    if verbose is not None:
+        logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
 
     logger.info('Importing XDF file %s...' % filename)
     filename = Path(filename).resolve()  # absolute path following symlinks
@@ -236,8 +243,8 @@ def load_xdf(filename,
                 chunklen = _read_varlen_int(f)
             except Exception:
                 if f.tell() < filesize - 1024:
-                    logger.warn('got zero-length chunk, scanning forward to '
-                                'next boundary chunk.')
+                    logger.warning('got zero-length chunk, scanning forward to '
+                                   'next boundary chunk.')
                     _scan_forward(f)
                     continue
                 else:
@@ -280,7 +287,6 @@ def load_xdf(filename,
                 # noinspection PyBroadException
                 try:
                     nsamples, stamps, values = _read_chunk3(f, temp[StreamId])
-
                     logger.debug('  reading [%s,%s]' % (temp[StreamId].nchns,
                                                             nsamples))
                     # optionally send through the on_chunk function

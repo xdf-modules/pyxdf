@@ -1,4 +1,4 @@
-## [Unreleased] - XXXX-XX-XX
+## [1.16.0] - 2019-09-27
 ### Added
 - Add option to load only specific streams ([#24](https://github.com/xdf-modules/xdf-Python/pull/24) by [Clemens Brunner](https://github.com/cbrnr)).
 - Add `verbose` argument to `load_xdf` ([#42](https://github.com/xdf-modules/xdf-Python/pull/42) by [Chadwick Boulay](https://github.com/cboulay)).

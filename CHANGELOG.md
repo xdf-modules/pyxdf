@@ -1,6 +1,7 @@
 ## [Unreleased] - XXXX-XX-XX
 ### Added
 - Add option to load only specific streams ([#24](https://github.com/xdf-modules/xdf-Python/pull/24) by [Clemens Brunner](https://github.com/cbrnr)).
+- Add `verbose` argument to `load_xdf` ([#42](https://github.com/xdf-modules/xdf-Python/pull/42) by [Chadwick Boulay](https://github.com/cboulay)).
 
 ### Fixed
 - Fixed bug in jitter removal ([#35](https://github.com/xdf-modules/xdf-python/pull/35) by [Alessandro D'Amico](https://github.com/ollie-d))

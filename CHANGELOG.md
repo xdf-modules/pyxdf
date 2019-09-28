@@ -1,3 +1,7 @@
+## [1.16.1] - 2019-09-28
+### Fixed
+- Remove Python 2 compatibility from `setup.py` ([#45](https://github.com/xdf-modules/xdf-Python/pull/45) by [Clemens Brunner](https://github.com/cbrnr)).
+
 ## [1.16.0] - 2019-09-27
 ### Added
 - Add option to load only specific streams ([#24](https://github.com/xdf-modules/xdf-Python/pull/24) by [Clemens Brunner](https://github.com/cbrnr)).

@@ -1,3 +1,7 @@
+## [1.16.2] - 2019-?
+### Changed
+- Speed up loading of numerical data ([#46](https://github.com/xdf-modules/xdf-python/pull/46) by [Tristan Stenner](https://github.com/tstenner))
+
 ## [1.16.1] - 2019-09-28
 ### Fixed
 - Remove Python 2 compatibility from `setup.py` ([#45](https://github.com/xdf-modules/xdf-Python/pull/45) by [Clemens Brunner](https://github.com/cbrnr)).

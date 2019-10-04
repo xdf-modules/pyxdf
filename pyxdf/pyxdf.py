@@ -404,6 +404,8 @@ def _read_chunk3(f, s):
     else:
         # read a sample comprised of numeric values
         values = np.zeros((nsamples, s.nchns), dtype=s.dtype)
+        # read buffer
+        raw = bytearray(s.nchns * values.dtype.itemsize)
         # for each sample...
         for k in range(values.shape[0]):
             # read or deduce time stamp
@@ -413,7 +415,7 @@ def _read_chunk3(f, s):
                 stamps[k] = s.last_timestamp + s.tdiff
             s.last_timestamp = stamps[k]
             # read the values
-            raw = f.read(s.nchns * values.dtype.itemsize)
+            f.readinto(raw)
             # no fromfile(), see
             # https://github.com/numpy/numpy/issues/13319
             values[k, :] = np.frombuffer(raw,

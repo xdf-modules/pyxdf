@@ -1,6 +1,9 @@
 ## [1.16.2] - 2019-?
+### Fixed
+- Compare nominal to effective sampling rates only for regularly sampled streams ([#47](https://github.com/xdf-modules/xdf-Python/pull/47) by [Clemens Brunner](https://github.com/cbrnr)).
+
 ### Changed
-- Speed up loading of numerical data ([#46](https://github.com/xdf-modules/xdf-python/pull/46) by [Tristan Stenner](https://github.com/tstenner))
+- Speed up loading of numerical data ([#46](https://github.com/xdf-modules/xdf-python/pull/46) by [Tristan Stenner](https://github.com/tstenner)).
 
 ## [1.16.1] - 2019-09-28
 ### Fixed

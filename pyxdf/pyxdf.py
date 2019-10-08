@@ -484,7 +484,7 @@ def _clock_sync(streams,
             # if requested, this is only for cases where "everything goes
             # wrong" during recording note that this is a fancy feature that
             # is not needed for normal XDF compliance.
-            if handle_clock_resets:
+            if handle_clock_resets and len(clock_times) > 1:
                 # First detect potential breaks in the synchronization data;
                 # this is only necessary when the importer should be able to
                 # deal with recordings where the computer that served a

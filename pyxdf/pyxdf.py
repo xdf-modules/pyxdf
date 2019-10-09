@@ -630,7 +630,8 @@ def _robust_fit(A, y, rho=1, iters=1000):
     for k in range(iters):
         x = np.linalg.solve(U, (np.linalg.solve(L, Aty + np.dot(A.T, z - u))))
         d = np.dot(A, x) - y + u
-        tmp = np.maximum(0, (1 - (1 + 1 / rho) / np.abs(d)))
+        with np.errstate(divide="ignore"):  # ignore divide by zero warning
+            tmp = np.maximum(0, (1 - (1 + 1 / rho) / np.abs(d)))
         z = rho / (1 + rho) * d + 1 / (1 + rho) * tmp * d
         u = d - z
     return x

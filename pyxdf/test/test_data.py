@@ -3,7 +3,7 @@ from pyxdf import load_xdf
 import pytest
 
 
-path = Path("../../example-files")
+path = Path("example-files")
 extensions = ["*.xdf", "*.xdfz", "*.xdf.gz"]
 files = []
 for ext in extensions:

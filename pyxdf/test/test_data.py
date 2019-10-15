@@ -16,7 +16,7 @@ files = [str(file) for file in files]
 def test_load_file(file):
     streams, header = load_xdf(file)
 
-    if file.name == "minimal.xdf":
+    if file.endswith("minimal.xdf"):
         assert header["info"]["version"][0] == "1.0"
 
         assert len(streams) == 2

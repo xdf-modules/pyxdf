@@ -38,7 +38,7 @@ def test_load_file(file):
                       [15, 25, 35]], dtype=np.int16)
         t = np.array([5., 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8])
         np.testing.assert_array_equal(streams[0]["time_series"], s)
-        np.testing.assert_array_equal(streams[0]["time_stamps"], t)
+        np.testing.assert_array_almost_equal(streams[0]["time_stamps"], t)
 
         assert streams[1]["info"]["name"][0] == "SendDataString"
         assert streams[1]["info"]["type"][0] == "StringMarker"
@@ -62,5 +62,5 @@ def test_load_file(file):
              ['from'],
              ['LSL']]
         t = np.array([5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9])
-        np.testing.assert_array_equal(streams[1]["time_series"], s)
-        np.testing.assert_array_equal(streams[1]["time_stamps"], t)
+        assert streams[1]["time_series"] == s
+        np.testing.assert_array_almost_equal(streams[1]["time_stamps"], t)

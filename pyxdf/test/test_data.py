@@ -4,6 +4,8 @@ import pytest
 import numpy as np
 
 
+# requires git clone https://github.com/xdf-modules/example-files.git
+# into the root xdf-python folder
 path = Path("example-files")
 extensions = ["*.xdf", "*.xdfz", "*.xdf.gz"]
 files = []

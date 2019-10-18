@@ -231,8 +231,6 @@ def load_xdf(filename,
     temp = {}
     # XML content of the file header chunk
     fileheader = None
-    # number of bytes in the file for fault tolerance
-    filesize = filename.stat().st_size
 
     with open_xdf(filename) as f:
         # for each chunk
@@ -242,9 +240,12 @@ def load_xdf(filename,
                 # read [NumLengthBytes], [Length]
                 chunklen = _read_varlen_int(f)
             except Exception:
-                if f.tell() < filesize - 1024:
+                # check if more than 1024 bytes are left
+                pos = f.tell()
+                if len(f.read(1024)) == 1024:
                     logger.warning('got zero-length chunk, scanning forward to '
                                    'next boundary chunk.')
+                    f.seek(pos, 0)
                     _scan_forward(f)
                     continue
                 else:

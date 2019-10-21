@@ -249,11 +249,8 @@ def load_xdf(filename,
                     f.seek(-1, 1)
                     if _scan_forward(f):
                         continue
-                    else:
-                        break
-                else:
-                    logger.info('  reached end of file.')
-                    break
+                logger.info('  reached end of file.')
+                break
 
             # read [Tag]
             tag = struct.unpack('<H', f.read(2))[0]

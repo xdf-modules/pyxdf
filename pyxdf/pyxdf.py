@@ -9,7 +9,7 @@
 
 This function is closely following the load_xdf reference implementation.
 """
-
+import io
 import struct
 import itertools
 import gzip
@@ -204,9 +204,6 @@ def load_xdf(filename,
         logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
 
     logger.info('Importing XDF file %s...' % filename)
-    filename = Path(filename).resolve()  # absolute path following symlinks
-    if not filename.exists():
-        raise Exception('file %s does not exist.' % filename)
 
     # if select_streams is an int or a list of int, load only streams
     # associated with the corresponding stream IDs
@@ -369,15 +366,28 @@ def load_xdf(filename,
     return streams, fileheader
 
 
-def open_xdf(filename):
-    """Open XDF file for reading."""
-    filename = Path(filename)  # ensure convert to pathlib object
-    if filename.suffix == '.xdfz' or filename.suffixes == ['.xdf', '.gz']:
-        f = gzip.open(str(filename), 'rb')
+def open_xdf(file):
+    """Open XDF file for reading.
+    :type file: str | pathlib.Path | io.RawIOBase
+        File name or already opened file
+    """
+
+    if isinstance(file, (io.RawIOBase, io.BufferedIOBase)):
+        if isinstance(file, io.TextIOBase):
+            raise ValueError('file has to be opened in binary mode')
+        f = file
     else:
-        f = open(str(filename), 'rb')
+        filename = Path(file)  # ensure convert to pathlib object
+        # check absolute path after following symlinks
+        if not filename.resolve().exists():
+            raise Exception('file %s does not exist.' % filename)
+
+        if filename.suffix == '.xdfz' or filename.suffixes == ['.xdf', '.gz']:
+            f = gzip.open(str(filename), 'rb')
+        else:
+            f = open(str(filename), 'rb')
     if f.read(4) != b'XDF:':  # magic bytes
-        raise IOError('Invalid XDF file {}'.format(filename))
+        raise IOError('Invalid XDF file {}'.format(file))
     return f
 
 

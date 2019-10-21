@@ -1,4 +1,7 @@
 ## [1.16.2] - 2019-??-??
+### Added
+- Allow loading from already opened file objects, e.g. in-memory files or network streams ([#51](https://github.com/xdf-modules/xdf-python/pull/51) by [Tristan Stenner](https://github.com/tstenner)).
+
 ### Fixed
 - Compare nominal to effective sampling rates only for regularly sampled streams ([#47](https://github.com/xdf-modules/xdf-Python/pull/47) by [Clemens Brunner](https://github.com/cbrnr)).
 - More robust error recovery for compressed corrupted files ([#50](https://github.com/xdf-modules/xdf-python/pull/50) by [Tristan Stenner](https://github.com/tstenner)).

@@ -24,3 +24,15 @@ def test_read_varlen_int():
     assert vla(b'\x08\xfd\x12\x00\x34\x12\x34\x56\x78') == 0x78563412340012fd
     with pytest.raises(RuntimeError):
         vla(b'\x00')
+
+
+def test_load_from_memory():
+    testfile = b'XDF:\01\n\02\00 \00\00\00<x/>'
+    f = pyxdf.pyxdf.open_xdf(io.BytesIO(testfile))
+    assert isinstance(f, io.BytesIO)
+    assert f.read()[-4:] == b'<x/>'
+
+    chunks = pyxdf.pyxdf.parse_xdf(io.BytesIO(testfile))
+    assert len(chunks) == 1
+    assert chunks[0]['stream_id'] == 32
+

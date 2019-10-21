@@ -231,8 +231,6 @@ def load_xdf(filename,
     temp = {}
     # XML content of the file header chunk
     fileheader = None
-    # number of bytes in the file for fault tolerance
-    filesize = filename.stat().st_size
 
     with open_xdf(filename) as f:
         # for each chunk
@@ -242,14 +240,17 @@ def load_xdf(filename,
                 # read [NumLengthBytes], [Length]
                 chunklen = _read_varlen_int(f)
             except Exception:
-                if f.tell() < filesize - 1024:
+                # If there's more data available (i.e. a read() succeeds),
+                # find the next boundary chunk
+                if f.read(1):
                     logger.warning('got zero-length chunk, scanning forward to '
                                    'next boundary chunk.')
-                    _scan_forward(f)
-                    continue
-                else:
-                    logger.info('  reached end of file.')
-                    break
+                    # move the stream position one byte back
+                    f.seek(-1, 1)
+                    if _scan_forward(f):
+                        continue
+                logger.info('  reached end of file.')
+                break
 
             # read [Tag]
             tag = struct.unpack('<H', f.read(2))[0]
@@ -460,10 +461,10 @@ def _scan_forward(f):
         if matchpos != -1:
             f.seek(curpos + matchpos + len(signature))
             logger.debug('  scan forward found a boundary chunk.')
-            break
+            return True
         if len(block) < blocklen:
             logger.debug('  scan forward reached end of file with no match.')
-            break
+            return False
 
 
 def _clock_sync(streams,

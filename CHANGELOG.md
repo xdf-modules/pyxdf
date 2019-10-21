@@ -1,6 +1,7 @@
 ## [1.16.2] - 2019-??-??
 ### Fixed
 - Compare nominal to effective sampling rates only for regularly sampled streams ([#47](https://github.com/xdf-modules/xdf-Python/pull/47) by [Clemens Brunner](https://github.com/cbrnr)).
+- More robust error recovery for compressed corrupted files ([#50](https://github.com/xdf-modules/xdf-python/pull/50) by [Tristan Stenner](https://github.com/tstenner)).
 
 ### Changed
 - Speed up loading of numerical data ([#46](https://github.com/xdf-modules/xdf-python/pull/46) by [Tristan Stenner](https://github.com/tstenner)).

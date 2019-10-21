@@ -240,14 +240,17 @@ def load_xdf(filename,
                 # read [NumLengthBytes], [Length]
                 chunklen = _read_varlen_int(f)
             except Exception:
-                # check if more than 1024 bytes are left
-                pos = f.tell()
-                if len(f.read(1024)) == 1024:
+                # If there's more data available (i.e. a read() succeeds),
+                # find the next boundary chunk
+                if f.read(1):
                     logger.warning('got zero-length chunk, scanning forward to '
                                    'next boundary chunk.')
-                    f.seek(pos, 0)
-                    _scan_forward(f)
-                    continue
+                    # move the stream position one byte back
+                    f.seek(-1, 1)
+                    if _scan_forward(f):
+                        continue
+                    else:
+                        break
                 else:
                     logger.info('  reached end of file.')
                     break
@@ -461,10 +464,10 @@ def _scan_forward(f):
         if matchpos != -1:
             f.seek(curpos + matchpos + len(signature))
             logger.debug('  scan forward found a boundary chunk.')
-            break
+            return True
         if len(block) < blocklen:
             logger.debug('  scan forward reached end of file with no match.')
-            break
+            return False
 
 
 def _clock_sync(streams,

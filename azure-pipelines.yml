@@ -34,7 +34,7 @@ steps:
   displayName: 'Install dependencies'
 
 - script: |
-    git clone https://github.com/xdf-modules/example-files.git
+    git clone --depth 1 https://github.com/xdf-modules/example-files.git
   displayName: 'Download test data'
 
 - script: |

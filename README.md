@@ -1,4 +1,5 @@
 [![Latest PyPI Release](https://img.shields.io/pypi/v/pyxdf)](https://pypi.org/project/pyxdf/)
+[![Latest Conda Release](https://img.shields.io/conda/vn/conda-forge/pyxdf)](https://anaconda.org/conda-forge/pyxdf)
 ![Python 3.5+](https://img.shields.io/badge/python-3.5+-green.svg)
 ![License](https://img.shields.io/github/license/xdf-modules/xdf-python)
 

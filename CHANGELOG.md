@@ -1,3 +1,5 @@
+## [1.16.3] - 20XX-XX-XX
+
 ## [1.16.2] - 2019-10-23
 ### Added
 - Allow loading from already opened file objects, e.g. in-memory files or network streams ([#51](https://github.com/xdf-modules/xdf-python/pull/51) by [Tristan Stenner](https://github.com/tstenner)).

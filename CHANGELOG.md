@@ -1,4 +1,4 @@
-## [1.16.2] - 2019-??-??
+## [1.16.2] - 2019-10-23
 ### Added
 - Allow loading from already opened file objects, e.g. in-memory files or network streams ([#51](https://github.com/xdf-modules/xdf-python/pull/51) by [Tristan Stenner](https://github.com/tstenner)).
 - Add CI tests with example data ([#49](https://github.com/xdf-modules/xdf-Python/pull/49) by [Clemens Brunner](https://github.com/cbrnr)).

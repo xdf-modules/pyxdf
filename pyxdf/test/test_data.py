@@ -47,7 +47,7 @@ def test_load_file(file):
         assert streams[1]["info"]["channel_count"][0] == "1"
         assert streams[1]["info"]["nominal_srate"][0] == "10"
         assert streams[1]["info"]["channel_format"][0] == "string"
-        assert streams[1]["info"]["stream_id"] == 46202862
+        assert streams[1]["info"]["stream_id"] == 0x02C0FFEE
 
         s = [['<?xml version="1.0"?><info><writer>LabRecorder xdfwriter'
               '</writer><first_timestamp>5.1</first_timestamp><last_timestamp>'

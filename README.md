@@ -1,7 +1,5 @@
 [![Latest PyPI Release](https://img.shields.io/pypi/v/pyxdf)](https://pypi.org/project/pyxdf/)
-![Python 3.6](https://img.shields.io/badge/python-3.5-green.svg)
-![Python 3.6](https://img.shields.io/badge/python-3.6-green.svg)
-![Python 3.7](https://img.shields.io/badge/python-3.7-green.svg)
+![Python 3.5+](https://img.shields.io/badge/python-3.5+-green.svg)
 ![License](https://img.shields.io/github/license/xdf-modules/xdf-python)
 
 pyXDF

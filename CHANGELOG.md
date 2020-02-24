@@ -1,4 +1,6 @@
 ## [1.16.3] - 20XX-XX-XX
+### Added
+- Add cython type hints (requires optional local compilation) ([#17](https://github.com/xdf-modules/xdf-python/pull/17) by [Tristan Stenner](https://github.com/tstenner)).
 
 ## [1.16.2] - 2019-10-23
 ### Added

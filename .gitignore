@@ -105,3 +105,7 @@ venv.bak/
 
 # PyCharm
 .idea
+
+# cython temporaries
+/pyxdf/pyxdf.c
+/pyxdf/pyxdf.html

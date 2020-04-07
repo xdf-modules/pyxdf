@@ -67,6 +67,7 @@ class StreamData:
 
 def load_xdf(filename,
              select_streams=None,
+             *,
              on_chunk=None,
              synchronize_clocks=True,
              handle_clock_resets=True,

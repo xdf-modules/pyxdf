@@ -1,6 +1,8 @@
 ## [1.16.3] - 20XX-XX-XX
 ### Added
 - Add cython type hints (requires optional local compilation) ([#17](https://github.com/xdf-modules/xdf-python/pull/17) by [Tristan Stenner](https://github.com/tstenner)).
+
+### Changed
 - `load_xdf` now requires keyword-only arguments after the first two arguments ([#59](https://github.com/xdf-modules/xdf-python/pull/59) by [Christian Kothe](https://github.com/chkothe)).
 
 ## [1.16.2] - 2019-10-23

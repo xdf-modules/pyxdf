@@ -256,11 +256,16 @@ def load_xdf(filename,
             # read [Tag]
             tag = struct.unpack('<H', f.read(2))[0]
             log_str = ' Read tag: {} at {} bytes, length={}'.format(tag, f.tell(), chunklen)
+            StreamId = None
             if tag in [2, 3, 4, 6]:
-                StreamId = struct.unpack('<I', f.read(4))[0]
-                log_str += ', StreamId={}'.format(StreamId)
-            else:
-                StreamId = None
+                _streamid = f.read(4)
+                try:
+                    StreamId = struct.unpack("<I", _streamid)[0]
+                    log_str += ", StreamId={}".format(StreamId)
+                except struct.error:
+                    StreamId = "StreamId missing"
+                    log_str += ", StreamId was missing"
+
 
             logger.debug(log_str)
 

@@ -260,9 +260,7 @@ def load_xdf(filename,
             if tag in [2, 3, 4, 6]:
                 _streamid = f.read(4)
                 try:
-                    StreamId = struct.unpack("<I", _streamid)[0]
-                    log_str += ", StreamId={}".format(StreamId)
-                    logger.debug(log_str)
+                    StreamId = struct.unpack("<I", _streamid)[0]                    
                 except struct.error:
                     # we scan forward to next (hopefully) valid block in a bid
                     # to load as much of the file as possible
@@ -274,6 +272,10 @@ def load_xdf(filename,
                     logger.error(log_str)
                     _scan_forward(f)
                     continue
+                else:
+                    # to be executed if no exception was raised
+                    log_str += ", StreamId={}".format(StreamId)
+                    logger.debug(log_str)
 
             if StreamId is not None and select_streams is not None:
                 if StreamId not in select_streams:

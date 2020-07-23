@@ -2,6 +2,9 @@
 ### Added
 - Add cython type hints (requires optional local compilation) ([#17](https://github.com/xdf-modules/xdf-python/pull/17) by [Tristan Stenner](https://github.com/tstenner)).
 
+### Fixed
+- Handle XDF files with corrupt chunk headers (missing stream IDs) more gracefully ([#62](https://github.com/xdf-modules/xdf-python/pull/62) by [Robert Guggenberger](https://github.com/agricolab))
+
 ### Changed
 - `load_xdf` now requires keyword-only arguments after the first two arguments ([#59](https://github.com/xdf-modules/xdf-python/pull/59) by [Christian Kothe](https://github.com/chkothe)).
 
@@ -16,7 +19,7 @@
 
 ### Changed
 - Speed up loading of numerical data ([#46](https://github.com/xdf-modules/xdf-python/pull/46) by [Tristan Stenner](https://github.com/tstenner)).
-- Avoid/suppress some NumPy warnings ([#48](https://github.com/xdf-modules/xdf-Python/pull/48) by [Clemens Brunner](https://github.com/cbrnr)). 
+- Avoid/suppress some NumPy warnings ([#48](https://github.com/xdf-modules/xdf-Python/pull/48) by [Clemens Brunner](https://github.com/cbrnr)).
 
 ## [1.16.1] - 2019-09-28
 ### Fixed

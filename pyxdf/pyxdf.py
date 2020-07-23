@@ -256,13 +256,26 @@ def load_xdf(filename,
             # read [Tag]
             tag = struct.unpack('<H', f.read(2))[0]
             log_str = ' Read tag: {} at {} bytes, length={}'.format(tag, f.tell(), chunklen)
+            StreamId = None
             if tag in [2, 3, 4, 6]:
-                StreamId = struct.unpack('<I', f.read(4))[0]
-                log_str += ', StreamId={}'.format(StreamId)
-            else:
-                StreamId = None
-
-            logger.debug(log_str)
+                _streamid = f.read(4)
+                try:
+                    StreamId = struct.unpack("<I", _streamid)[0]                    
+                except struct.error:
+                    # we scan forward to next (hopefully) valid block in a bid
+                    # to load as much of the file as possible
+                    # If the StreamId could not be parsed correctly, it will be
+                    # None. We therefore also need to continue, because
+                    # otherwise we might end up in one the tag-specific branches
+                    # which expect a valid StreamId
+                    log_str += ", but StreamId is corrupt, scanning forward to next boundary chunk."
+                    logger.error(log_str)
+                    _scan_forward(f)
+                    continue
+                else:
+                    # to be executed if no exception was raised
+                    log_str += ", StreamId={}".format(StreamId)
+                    logger.debug(log_str)
 
             if StreamId is not None and select_streams is not None:
                 if StreamId not in select_streams:

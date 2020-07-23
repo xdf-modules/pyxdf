@@ -3,22 +3,23 @@
 #
 # License: BSD (2-clause)
 
-import os
+from os.path import abspath, join, dirname
 import logging
 import pyxdf
 import sys
 
 
-logging.basicConfig(level=logging.DEBUG)  # Use logging.INFO to reduce output.
+logging.basicConfig(level=logging.DEBUG)  # Use logging.INFO to reduce output
 if len(sys.argv) > 1:
     fname = sys.argv[1]
 else:
-    fname = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'xdf_sample.xdf'))
+    fname = abspath(join(dirname(__file__), '..', '..', 'xdf_sample.xdf'))
 streams, fileheader = pyxdf.load_xdf(fname)
 
 print("Found {} streams:".format(len(streams)))
 for ix, stream in enumerate(streams):
-    print("Stream {}: {} - type {} - uid {} - shape {} at {} Hz (effective {} Hz)".format(
+    msg = "Stream {}: {} - type {} - uid {} - shape {} at {} (effective {}) Hz"
+    print(msg.format(
         ix + 1, stream['info']['name'][0],
         stream['info']['type'][0],
         stream['info']['uid'][0],
@@ -27,5 +28,6 @@ for ix, stream in enumerate(streams):
         stream['info']['effective_srate'])
     )
     if any(stream['time_stamps']):
-        print("\tDuration: {} s".format(stream['time_stamps'][-1] - stream['time_stamps'][0]))
+        duration = stream['time_stamps'][-1] - stream['time_stamps'][0]
+        print("\tDuration: {} s".format(duration))
 print("Done.")

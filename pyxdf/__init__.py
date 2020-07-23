@@ -10,3 +10,4 @@ except DistributionNotFound:  # package is not installed
     __version__ = None
 from .pyxdf import load_xdf, resolve_streams, match_streaminfos
 
+__all__ = [load_xdf, resolve_streams, match_streaminfos]

@@ -13,7 +13,7 @@ import io
 import struct
 import itertools
 import gzip
-import xml.etree.ElementTree as ET
+from xml.etree.ElementTree import fromstring
 from collections import OrderedDict, defaultdict
 import logging
 from pathlib import Path
@@ -30,15 +30,13 @@ class StreamData:
 
     def __init__(self, xml):
         """Init a new StreamData object from a stream header."""
-        fmts = dict([
-            ('double64', np.float64),
-            ('float32', np.float32),
-            ('string', np.object),
-            ('int32', np.int32),
-            ('int16', np.int16),
-            ('int8', np.int8),
-            ('int64', np.int64)
-        ])
+        fmts = dict(double64=np.float64,
+                    float32=np.float32,
+                    string=np.object,
+                    int32=np.int32,
+                    int16=np.int16,
+                    int8=np.int8,
+                    int64=np.int64)
         # number of channels
         self.nchns = int(xml['info']['channel_count'][0])
         # nominal sampling rate in Hz
@@ -84,24 +82,24 @@ def load_xdf(filename,
 
     This is an importer for multi-stream XDF (Extensible Data Format)
     recordings. All information covered by the XDF 1.0 specification is
-    imported, plus any additional meta-data associated with streams or with
-    the container file itself.
+    imported, plus any additional meta-data associated with streams or with the
+    container file itself.
 
     See https://github.com/sccn/xdf/ for more information on XDF.
 
-    The function supports several further features, such as robust time
+    The function supports several additional features, such as robust time
     synchronization, support for breaks in the data, as well as some other
     defects.
 
     Args:
-        filename : name of the file to import (*.xdf or *.xdfz)
+        filename : Name of the file to import (*.xdf or *.xdfz).
 
         select_streams : int | list[int] | list[dict] | None
           One or more stream IDs to load. Accepted values are:
           - int or list[int]: load only specified stream IDs, e.g.
             select_streams=5 loads only the stream with stream ID 5, whereas
             select_streams=[2, 4] loads only streams with stream IDs 2 and 4.
-          - list[dict]: load only streams matching the query, e.g.
+          - list[dict]: load only streams matching a query, e.g.
             select_streams=[{'type': 'EEG'}] loads all streams of type 'EEG'.
             Entries within a dict must all match a stream, e.g.
             select_streams=[{'type': 'EEG', 'name': 'TestAMP'}] matches streams
@@ -110,9 +108,8 @@ def load_xdf(filename,
             matching either the type *or* the name will be loaded.
           - None: load all streams (default).
 
-        verbose: Passing True will set logging level to DEBUG,
-          False will set logging level to WARNING,
-          and None will use root logger level. (default: None)
+        verbose : Passing True will set logging level to DEBUG, False will set
+          it to WARNING, and None will use root logger level. (default: None)
 
         synchronize_clocks : Whether to enable clock synchronization based on
           ClockOffset chunks. (default: true)
@@ -123,29 +120,29 @@ def load_xdf(filename,
         on_chunk : Function that is called for each chunk of data as it is
            being retrieved from the file; the function is allowed to modify
            the data (for example, sub-sample it). The four input arguments
-           are 1) the matrix of [#channels x #samples] values (either numeric
-           or 2d cell array of strings), 2) the vector of unprocessed local
-           time stamps ( one per sample), 3) the info struct for the stream (
-           same as the .info field in the final output, buth without the
-           .effective_srate sub-field), and 4) the scalar stream number (
-           1-based integers). The three return values are 1) the (optionally
-           modified) data, 2) the (optionally modified) time stamps, and 3)
-           the (optionally modified) header (default: []).
+           are (1) the matrix of [#channels x #samples] values (either numeric
+           or 2D array of strings), (2) the vector of unprocessed local time
+           stamps (one per sample), (3) the info struct for the stream (same as
+           the .info field in the final output, but without the
+           .effective_srate sub-field), and (4) the scalar stream number
+           (1-based integers). The three return values are (1) the (optionally
+           modified) data, (2) the (optionally modified) time stamps, and (3)
+           the (optionally modified) header. (default: [])
 
         Parameters for advanced failure recovery in clock synchronization:
 
         handle_clock_resets : Whether the importer should check for potential
           resets of the clock of a stream (e.g. computer restart during
-          recording, or hot-swap). Only useful if the recording system
-          supports recording under such circumstances. (default: true)
+          recording, or hot-swap). Only useful if the recording system supports
+          recording under such circumstances. (default: true)
 
         clock_reset_threshold_stds : A clock reset must be accompanied by a
           ClockOffset chunk being delayed by at least this many standard
           deviations from the distribution. (default: 5)
 
         clock_reset_threshold_seconds : A clock reset must be accompanied by a
-          ClockOffset chunk being delayed by at least this many seconds. (
-          default: 5)
+          ClockOffset chunk being delayed by at least this many seconds.
+          (default: 5)
 
         clock_reset_threshold_offset_stds : A clock reset must be accompanied
           by a ClockOffset difference that lies at least this many standard
@@ -155,9 +152,8 @@ def load_xdf(filename,
           accompanied by a ClockOffset difference that is at least this many
           seconds away from the median. (default: 1)
 
-        winsor_threshold : A threshold above which jitters the clock offsets
-          will be treated robustly (i.e., like outliers), in seconds
-          (default: 0.0001)
+        winsor_threshold : A threshold above which the clock offsets will be
+          treated robustly (i.e., like outliers), in seconds. (default: 0.0001)
 
         Parameters for jitter removal in the presence of data breaks:
 
@@ -172,33 +168,27 @@ def load_xdf(filename,
           crossed) and multiple segments will be returned. (default: 500)
 
     Returns:
-        streams : list of dicts, one for each stream; the dicts
-                  have the following content:
-                 ['time_series'] entry: contains the stream's time series
-                   [#Channels x #Samples] this matrix is of the type declared
-                   in ['info']['channel_format']
-                 ['time_stamps'] entry: contains the time stamps for each
-                   sample (synced across streams)
+        streams : list[dict] (one dict for each stream)
+          Dicts have the following content:
+          - 'time_series': Contains the time series as a [#Channels x #Samples]
+            array of the type declared in ['info']['channel_format'].
+          - 'time_stamps': Contains the time stamps for each sample (synced
+            across streams).
+          - 'info': Contains the meta-data of the stream (all values are
+            strings).
+          - 'name': Name of the stream.
+          - 'type': Content type of the stream ('EEG', 'Events', ...).
+          - 'channel_format': Value format ('int8', 'int16', 'int32', 'int64',
+            'float32', 'double64', 'string').
+          - 'nominal_srate': Nominal sampling rate of the stream (as declared
+            by the device); zero for streams with irregular sampling rate.
+          - 'effective_srate': Effective (measured) sampling rate of the
+            stream if regular (otherwise omitted).
+          - 'desc': Dict with any domain-specific meta-data.
 
-                 ['info'] field: contains the meta-data of the stream
-                   (all values are strings)
-                   ['name']: name of the stream
-                   ['type']: content-type of the stream ('EEG','Events', ...)
-                   ['channel_format']: value format ('int8', 'int16', 'int32',
-                     'int64', 'float32', 'double64', 'string')
-                   ['nominal_srate']: nominal sampling rate of the stream
-                     (as declared by the device); zero for streams with
-                     irregular sampling rate
-                   ['effective_srate']: effective (measured) sampling rate of
-                     the stream, if regular (otherwise omitted)
-                   ['desc']: dict with any domain-specific meta-data declared
-                     for the stream; see www.xdf.org for the declared
-                     specifications
-
-        fileheader : dict with file header contents in the "info" field
+        fileheader : Dict with file header contents in the 'info' field.
 
     Examples:
-        load the streams contained in a given XDF file
         >>> streams, fileheader = load_xdf('myrecording.xdf')
     """
     if verbose is not None:
@@ -239,13 +229,13 @@ def load_xdf(filename,
                 chunklen = _read_varlen_int(f)
             except EOFError:
                 break
-            except Exception as e:
+            except Exception:
                 logger.exception('Error reading chunk length')
                 # If there's more data available (i.e. a read() succeeds),
                 # find the next boundary chunk
                 if f.read(1):
-                    logger.warning('got zero-length chunk, scanning forward to '
-                                   'next boundary chunk.')
+                    logger.warning('got zero-length chunk, scanning forward to'
+                                   ' next boundary chunk.')
                     # move the stream position one byte back
                     f.seek(-1, 1)
                     if _scan_forward(f):
@@ -255,20 +245,22 @@ def load_xdf(filename,
 
             # read [Tag]
             tag = struct.unpack('<H', f.read(2))[0]
-            log_str = ' Read tag: {} at {} bytes, length={}'.format(tag, f.tell(), chunklen)
+            log_str = ' Read tag: {} at {} bytes, length={}'
+            log_str = log_str.format(tag, f.tell(), chunklen)
             StreamId = None
             if tag in [2, 3, 4, 6]:
                 _streamid = f.read(4)
                 try:
-                    StreamId = struct.unpack("<I", _streamid)[0]                    
+                    StreamId = struct.unpack("<I", _streamid)[0]
                 except struct.error:
                     # we scan forward to next (hopefully) valid block in a bid
-                    # to load as much of the file as possible
-                    # If the StreamId could not be parsed correctly, it will be
-                    # None. We therefore also need to continue, because
-                    # otherwise we might end up in one the tag-specific branches
-                    # which expect a valid StreamId
-                    log_str += ", but StreamId is corrupt, scanning forward to next boundary chunk."
+                    # to load as much of the file as possible If the StreamId
+                    # could not be parsed correctly, it will be None. We
+                    # therefore also need to continue, because otherwise we
+                    # might end up in one the tag-specific branches which
+                    # expect a valid StreamId
+                    log_str += (", StreamId is corrupt, scanning forward to "
+                                "next boundary chunk.")
                     logger.error(log_str)
                     _scan_forward(f)
                     continue
@@ -286,13 +278,13 @@ def load_xdf(filename,
             if tag == 1:
                 # read [FileHeader] chunk
                 xml_string = f.read(chunklen - 2)
-                fileheader = _xml2dict(ET.fromstring(xml_string))
+                fileheader = _xml2dict(fromstring(xml_string))
             elif tag == 2:
                 # read [StreamHeader] chunk...
                 # read [Content]
                 xml_string = f.read(chunklen - 6)
                 decoded_string = xml_string.decode('utf-8', 'replace')
-                hdr = _xml2dict(ET.fromstring(decoded_string))
+                hdr = _xml2dict(fromstring(decoded_string))
                 streams[StreamId] = hdr
                 logger.debug('  found stream ' + hdr['info']['name'][0])
                 # initialize per-stream temp data
@@ -303,11 +295,11 @@ def load_xdf(filename,
                 try:
                     nsamples, stamps, values = _read_chunk3(f, temp[StreamId])
                     logger.debug('  reading [%s,%s]' % (temp[StreamId].nchns,
-                                                            nsamples))
+                                                        nsamples))
                     # optionally send through the on_chunk function
                     if on_chunk is not None:
-                        values, stamps, streams[StreamId] = on_chunk(values, stamps,
-                                                                     streams[StreamId], StreamId)
+                        values, stamps, streams[StreamId] = on_chunk(
+                            values, stamps, streams[StreamId], StreamId)
                     # append to the time series...
                     temp[StreamId].time_series.append(values)
                     temp[StreamId].time_stamps.append(stamps)
@@ -315,16 +307,19 @@ def load_xdf(filename,
                     # an error occurred (perhaps a chopped-off file): emit a
                     # warning and scan forward to the next recognized chunk
                     logger.error('found likely XDF file corruption (%s), '
-                                 'scanning forward to next boundary chunk.' % e)
+                                 'scanning forward to next boundary chunk.' %
+                                 e)
                     _scan_forward(f)
             elif tag == 6:
                 # read [StreamFooter] chunk
                 xml_string = f.read(chunklen - 6)
-                streams[StreamId]['footer'] = _xml2dict(ET.fromstring(xml_string))
+                streams[StreamId]['footer'] = _xml2dict(fromstring(xml_string))
             elif tag == 4:
                 # read [ClockOffset] chunk
-                temp[StreamId].clock_times.append(struct.unpack('<d', f.read(8))[0])
-                temp[StreamId].clock_values.append(struct.unpack('<d', f.read(8))[0])
+                temp[StreamId].clock_times.append(
+                    struct.unpack('<d', f.read(8))[0])
+                temp[StreamId].clock_values.append(
+                    struct.unpack('<d', f.read(8))[0])
             else:
                 # skip other chunk types (Boundary, ...)
                 f.read(chunklen - 2)
@@ -453,6 +448,8 @@ def _read_chunk3(f, s):
 
 
 _read_varlen_int_buf = bytearray(1)
+
+
 def _read_varlen_int(f):
     """Read a variable-length integer."""
     if not f.readinto(_read_varlen_int_buf):
@@ -509,16 +506,16 @@ def _clock_sync(streams,
             if not clock_times:
                 continue
 
-            # Detect clock resets (e.g., computer restarts during recording)
-            # if requested, this is only for cases where "everything goes
-            # wrong" during recording note that this is a fancy feature that
-            # is not needed for normal XDF compliance.
+            # Detect clock resets (e.g., computer restarts during recording) if
+            # requested, this is only for cases where "everything goes wrong"
+            # during recording note that this is a fancy feature that is not
+            # needed for normal XDF compliance.
             if handle_clock_resets and len(clock_times) > 1:
                 # First detect potential breaks in the synchronization data;
                 # this is only necessary when the importer should be able to
-                # deal with recordings where the computer that served a
-                # stream was restarted or hot-swapped during an ongoing
-                # recording, or the clock was reset otherwise.
+                # deal with recordings where the computer that served a stream
+                # was restarted or hot-swapped during an ongoing recording, or
+                # the clock was reset otherwise.
 
                 time_diff = np.diff(clock_times)
                 value_diff = np.abs(np.diff(clock_values))
@@ -581,7 +578,8 @@ def _clock_sync(streams,
                 for coef_i, range_i in zip(coef, ranges):
                     r = slice(range_i[0], range_i[1])
                     stream.time_stamps[r] += (coef_i[0] +
-                                              coef_i[1] * stream.time_stamps[r])
+                                              coef_i[1] *
+                                              stream.time_stamps[r])
     return streams
 
 
@@ -618,7 +616,7 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
                 # Calculate range segment duration (assuming last sample
                 # duration was exactly 1 * stream.tdiff)
                 durations = ((stream.time_stamps[seg_stops] + stream.tdiff) -
-                              stream.time_stamps[seg_starts])
+                             stream.time_stamps[seg_starts])
                 stream.effective_srate = np.sum(counts) / np.sum(durations)
 
         srate, effective_srate = stream.srate, stream.effective_srate
@@ -683,6 +681,7 @@ def match_streaminfos(stream_infos, parameters):
                   a "type" field equal to "EEG".
     """
     matches = []
+    match = False
     for request in parameters:
         for info in stream_infos:
             for key in request.keys():
@@ -774,7 +773,7 @@ def _read_chunks(f):
         if chunk["tag"] in [2, 3, 4, 6]:
             chunk["stream_id"] = struct.unpack("<I", f.read(4))[0]
             if chunk["tag"] == 2:  # parse StreamHeader chunk
-                xml = ET.fromstring(f.read(chunk["nbytes"] - 6).decode())
+                xml = fromstring(f.read(chunk["nbytes"] - 6).decode())
                 chunk = {**chunk, **_parse_streamheader(xml)}
             else:  # skip remaining chunk contents
                 f.seek(chunk["nbytes"] - 6, 1)

@@ -43,7 +43,7 @@ class StreamData:
         # number of channels
         self.nchns = int(xml["info"]["channel_count"][0])
         # nominal sampling rate in Hz
-        self.srate = round(float(xml["info"]["nominal_srate"][0]))
+        self.srate = float(xml["info"]["nominal_srate"][0])
         # format string (int8, int16, int32, float32, double64, string)
         self.fmt = xml["info"]["channel_format"][0]
         # list of time-stamp chunks (each an ndarray, in seconds)
@@ -802,7 +802,7 @@ def parse_chunks(chunks):
                     hostname=chunk.get("hostname"),  # optional
                     channel_count=int(chunk["channel_count"]),
                     channel_format=chunk["channel_format"],
-                    nominal_srate=round(float(chunk["nominal_srate"])),
+                    nominal_srate=float(chunk["nominal_srate"]),
                 )
             )
     return streams

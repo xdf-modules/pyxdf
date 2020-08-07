@@ -5,7 +5,7 @@
 ### Fixed
 - Handle XDF files with corrupt chunk headers (missing stream IDs) more gracefully ([#62](https://github.com/xdf-modules/xdf-python/pull/62) by [Robert Guggenberger](https://github.com/agricolab))
 
-- Treat `nominal_srate` field as float to fix parsing errors ([#65](https://github.com/xdf-modules/xdf-python/pull/62) by [Robert Guggenberger](https://github.com/agricolab))
+- Treat `nominal_srate` field as float to fix parsing errors ([#65](https://github.com/xdf-modules/xdf-python/pull/62) by [Robert Guggenberger](https://github.com/agricolab) and [#68](https://github.com/xdf-modules/xdf-Python/pull/68) by [Clemens Brunner](https://github.com/cbrnr))
 
 ### Changed
 - `load_xdf` now requires keyword-only arguments after the first two arguments ([#59](https://github.com/xdf-modules/xdf-python/pull/59) by [Christian Kothe](https://github.com/chkothe))

@@ -13,14 +13,15 @@ import io
 import struct
 import itertools
 import gzip
-import xml.etree.ElementTree as ET
+from xml.etree.ElementTree import fromstring
 from collections import OrderedDict, defaultdict
 import logging
 from pathlib import Path
 
 import numpy as np
 
-__all__ = ['load_xdf']
+
+__all__ = ["load_xdf"]
 
 logger = logging.getLogger(__name__)
 
@@ -30,21 +31,21 @@ class StreamData:
 
     def __init__(self, xml):
         """Init a new StreamData object from a stream header."""
-        fmts = dict([
-            ('double64', np.float64),
-            ('float32', np.float32),
-            ('string', np.object),
-            ('int32', np.int32),
-            ('int16', np.int16),
-            ('int8', np.int8),
-            ('int64', np.int64)
-        ])
+        fmts = dict(
+            double64=np.float64,
+            float32=np.float32,
+            string=np.object,
+            int32=np.int32,
+            int16=np.int16,
+            int8=np.int8,
+            int64=np.int64,
+        )
         # number of channels
-        self.nchns = int(xml['info']['channel_count'][0])
+        self.nchns = int(xml["info"]["channel_count"][0])
         # nominal sampling rate in Hz
-        self.srate = round(float(xml['info']['nominal_srate'][0]))
+        self.srate = round(float(xml["info"]["nominal_srate"][0]))
         # format string (int8, int16, int32, float32, double64, string)
-        self.fmt = xml['info']['channel_format'][0]
+        self.fmt = xml["info"]["channel_format"][0]
         # list of time-stamp chunks (each an ndarray, in seconds)
         self.time_stamps = []
         # list of time-series chunks (each an ndarray or list of lists)
@@ -59,49 +60,51 @@ class StreamData:
         self.tdiff = 1.0 / self.srate if self.srate > 0 else 0.0
         self.effective_srate = 0.0
         # pre-calc some parsing parameters for efficiency
-        if self.fmt != 'string':
+        if self.fmt != "string":
             self.dtype = np.dtype(fmts[self.fmt])
             # number of bytes to read from stream to handle one sample
             self.samplebytes = self.nchns * self.dtype.itemsize
 
 
-def load_xdf(filename,
-             select_streams=None,
-             *,
-             on_chunk=None,
-             synchronize_clocks=True,
-             handle_clock_resets=True,
-             dejitter_timestamps=True,
-             jitter_break_threshold_seconds=1,
-             jitter_break_threshold_samples=500,
-             clock_reset_threshold_seconds=5,
-             clock_reset_threshold_stds=5,
-             clock_reset_threshold_offset_seconds=1,
-             clock_reset_threshold_offset_stds=10,
-             winsor_threshold=0.0001,
-             verbose=None):
+def load_xdf(
+    filename,
+    select_streams=None,
+    *,
+    on_chunk=None,
+    synchronize_clocks=True,
+    handle_clock_resets=True,
+    dejitter_timestamps=True,
+    jitter_break_threshold_seconds=1,
+    jitter_break_threshold_samples=500,
+    clock_reset_threshold_seconds=5,
+    clock_reset_threshold_stds=5,
+    clock_reset_threshold_offset_seconds=1,
+    clock_reset_threshold_offset_stds=10,
+    winsor_threshold=0.0001,
+    verbose=None
+):
     """Import an XDF file.
 
     This is an importer for multi-stream XDF (Extensible Data Format)
     recordings. All information covered by the XDF 1.0 specification is
-    imported, plus any additional meta-data associated with streams or with
-    the container file itself.
+    imported, plus any additional meta-data associated with streams or with the
+    container file itself.
 
     See https://github.com/sccn/xdf/ for more information on XDF.
 
-    The function supports several further features, such as robust time
+    The function supports several additional features, such as robust time
     synchronization, support for breaks in the data, as well as some other
     defects.
 
     Args:
-        filename : name of the file to import (*.xdf or *.xdfz)
+        filename : Name of the file to import (*.xdf or *.xdfz).
 
         select_streams : int | list[int] | list[dict] | None
           One or more stream IDs to load. Accepted values are:
           - int or list[int]: load only specified stream IDs, e.g.
             select_streams=5 loads only the stream with stream ID 5, whereas
             select_streams=[2, 4] loads only streams with stream IDs 2 and 4.
-          - list[dict]: load only streams matching the query, e.g.
+          - list[dict]: load only streams matching a query, e.g.
             select_streams=[{'type': 'EEG'}] loads all streams of type 'EEG'.
             Entries within a dict must all match a stream, e.g.
             select_streams=[{'type': 'EEG', 'name': 'TestAMP'}] matches streams
@@ -110,9 +113,8 @@ def load_xdf(filename,
             matching either the type *or* the name will be loaded.
           - None: load all streams (default).
 
-        verbose: Passing True will set logging level to DEBUG,
-          False will set logging level to WARNING,
-          and None will use root logger level. (default: None)
+        verbose : Passing True will set logging level to DEBUG, False will set
+          it to WARNING, and None will use root logger level. (default: None)
 
         synchronize_clocks : Whether to enable clock synchronization based on
           ClockOffset chunks. (default: true)
@@ -123,29 +125,29 @@ def load_xdf(filename,
         on_chunk : Function that is called for each chunk of data as it is
            being retrieved from the file; the function is allowed to modify
            the data (for example, sub-sample it). The four input arguments
-           are 1) the matrix of [#channels x #samples] values (either numeric
-           or 2d cell array of strings), 2) the vector of unprocessed local
-           time stamps ( one per sample), 3) the info struct for the stream (
-           same as the .info field in the final output, buth without the
-           .effective_srate sub-field), and 4) the scalar stream number (
-           1-based integers). The three return values are 1) the (optionally
-           modified) data, 2) the (optionally modified) time stamps, and 3)
-           the (optionally modified) header (default: []).
+           are (1) the matrix of [#channels x #samples] values (either numeric
+           or 2D array of strings), (2) the vector of unprocessed local time
+           stamps (one per sample), (3) the info struct for the stream (same as
+           the .info field in the final output, but without the
+           .effective_srate sub-field), and (4) the scalar stream number
+           (1-based integers). The three return values are (1) the (optionally
+           modified) data, (2) the (optionally modified) time stamps, and (3)
+           the (optionally modified) header. (default: [])
 
         Parameters for advanced failure recovery in clock synchronization:
 
         handle_clock_resets : Whether the importer should check for potential
           resets of the clock of a stream (e.g. computer restart during
-          recording, or hot-swap). Only useful if the recording system
-          supports recording under such circumstances. (default: true)
+          recording, or hot-swap). Only useful if the recording system supports
+          recording under such circumstances. (default: true)
 
         clock_reset_threshold_stds : A clock reset must be accompanied by a
           ClockOffset chunk being delayed by at least this many standard
           deviations from the distribution. (default: 5)
 
         clock_reset_threshold_seconds : A clock reset must be accompanied by a
-          ClockOffset chunk being delayed by at least this many seconds. (
-          default: 5)
+          ClockOffset chunk being delayed by at least this many seconds.
+          (default: 5)
 
         clock_reset_threshold_offset_stds : A clock reset must be accompanied
           by a ClockOffset difference that lies at least this many standard
@@ -155,9 +157,8 @@ def load_xdf(filename,
           accompanied by a ClockOffset difference that is at least this many
           seconds away from the median. (default: 1)
 
-        winsor_threshold : A threshold above which jitters the clock offsets
-          will be treated robustly (i.e., like outliers), in seconds
-          (default: 0.0001)
+        winsor_threshold : A threshold above which the clock offsets will be
+          treated robustly (i.e., like outliers), in seconds. (default: 0.0001)
 
         Parameters for jitter removal in the presence of data breaks:
 
@@ -172,39 +173,33 @@ def load_xdf(filename,
           crossed) and multiple segments will be returned. (default: 500)
 
     Returns:
-        streams : list of dicts, one for each stream; the dicts
-                  have the following content:
-                 ['time_series'] entry: contains the stream's time series
-                   [#Channels x #Samples] this matrix is of the type declared
-                   in ['info']['channel_format']
-                 ['time_stamps'] entry: contains the time stamps for each
-                   sample (synced across streams)
+        streams : list[dict] (one dict for each stream)
+          Dicts have the following content:
+          - 'time_series': Contains the time series as a [#Channels x #Samples]
+            array of the type declared in ['info']['channel_format'].
+          - 'time_stamps': Contains the time stamps for each sample (synced
+            across streams).
+          - 'info': Contains the meta-data of the stream (all values are
+            strings).
+          - 'name': Name of the stream.
+          - 'type': Content type of the stream ('EEG', 'Events', ...).
+          - 'channel_format': Value format ('int8', 'int16', 'int32', 'int64',
+            'float32', 'double64', 'string').
+          - 'nominal_srate': Nominal sampling rate of the stream (as declared
+            by the device); zero for streams with irregular sampling rate.
+          - 'effective_srate': Effective (measured) sampling rate of the
+            stream if regular (otherwise omitted).
+          - 'desc': Dict with any domain-specific meta-data.
 
-                 ['info'] field: contains the meta-data of the stream
-                   (all values are strings)
-                   ['name']: name of the stream
-                   ['type']: content-type of the stream ('EEG','Events', ...)
-                   ['channel_format']: value format ('int8', 'int16', 'int32',
-                     'int64', 'float32', 'double64', 'string')
-                   ['nominal_srate']: nominal sampling rate of the stream
-                     (as declared by the device); zero for streams with
-                     irregular sampling rate
-                   ['effective_srate']: effective (measured) sampling rate of
-                     the stream, if regular (otherwise omitted)
-                   ['desc']: dict with any domain-specific meta-data declared
-                     for the stream; see www.xdf.org for the declared
-                     specifications
-
-        fileheader : dict with file header contents in the "info" field
+        fileheader : Dict with file header contents in the 'info' field.
 
     Examples:
-        load the streams contained in a given XDF file
         >>> streams, fileheader = load_xdf('myrecording.xdf')
     """
     if verbose is not None:
         logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
 
-    logger.info('Importing XDF file %s...' % filename)
+    logger.info("Importing XDF file %s..." % filename)
 
     # if select_streams is an int or a list of int, load only streams
     # associated with the corresponding stream IDs
@@ -215,13 +210,16 @@ def load_xdf(filename,
     elif isinstance(select_streams, int):
         select_streams = [select_streams]
     elif all([isinstance(elem, dict) for elem in select_streams]):
-        select_streams = match_streaminfos(resolve_streams(filename),
-                                           select_streams)
+        select_streams = match_streaminfos(
+            resolve_streams(filename), select_streams
+        )
         if not select_streams:  # no streams found
             raise ValueError("No matching streams found.")
     elif not all([isinstance(elem, int) for elem in select_streams]):
-        raise ValueError("Argument 'select_streams' must be an int, a list of "
-                         "ints or a list of dicts.")
+        raise ValueError(
+            "Argument 'select_streams' must be an int, a list of ints or a "
+            "list of dicts."
+        )
 
     # dict of returned streams, in order of appearance, indexed by stream id
     streams = OrderedDict()
@@ -239,36 +237,42 @@ def load_xdf(filename,
                 chunklen = _read_varlen_int(f)
             except EOFError:
                 break
-            except Exception as e:
-                logger.exception('Error reading chunk length')
+            except Exception:
+                logger.exception("Error reading chunk length")
                 # If there's more data available (i.e. a read() succeeds),
                 # find the next boundary chunk
                 if f.read(1):
-                    logger.warning('got zero-length chunk, scanning forward to '
-                                   'next boundary chunk.')
+                    logger.warning(
+                        "got zero-length chunk, scanning forward to next "
+                        "boundary chunk."
+                    )
                     # move the stream position one byte back
                     f.seek(-1, 1)
                     if _scan_forward(f):
                         continue
-                logger.info('  reached end of file.')
+                logger.info("  reached end of file.")
                 break
 
             # read [Tag]
-            tag = struct.unpack('<H', f.read(2))[0]
-            log_str = ' Read tag: {} at {} bytes, length={}'.format(tag, f.tell(), chunklen)
+            tag = struct.unpack("<H", f.read(2))[0]
+            log_str = " Read tag: {} at {} bytes, length={}"
+            log_str = log_str.format(tag, f.tell(), chunklen)
             StreamId = None
             if tag in [2, 3, 4, 6]:
                 _streamid = f.read(4)
                 try:
-                    StreamId = struct.unpack("<I", _streamid)[0]                    
+                    StreamId = struct.unpack("<I", _streamid)[0]
                 except struct.error:
                     # we scan forward to next (hopefully) valid block in a bid
-                    # to load as much of the file as possible
-                    # If the StreamId could not be parsed correctly, it will be
-                    # None. We therefore also need to continue, because
-                    # otherwise we might end up in one the tag-specific branches
-                    # which expect a valid StreamId
-                    log_str += ", but StreamId is corrupt, scanning forward to next boundary chunk."
+                    # to load as much of the file as possible If the StreamId
+                    # could not be parsed correctly, it will be None. We
+                    # therefore also need to continue, because otherwise we
+                    # might end up in one the tag-specific branches which
+                    # expect a valid StreamId
+                    log_str += (
+                        ", StreamId is corrupt, scanning forward to next "
+                        "boundary chunk."
+                    )
                     logger.error(log_str)
                     _scan_forward(f)
                     continue
@@ -286,15 +290,15 @@ def load_xdf(filename,
             if tag == 1:
                 # read [FileHeader] chunk
                 xml_string = f.read(chunklen - 2)
-                fileheader = _xml2dict(ET.fromstring(xml_string))
+                fileheader = _xml2dict(fromstring(xml_string))
             elif tag == 2:
                 # read [StreamHeader] chunk...
                 # read [Content]
                 xml_string = f.read(chunklen - 6)
-                decoded_string = xml_string.decode('utf-8', 'replace')
-                hdr = _xml2dict(ET.fromstring(decoded_string))
+                decoded_string = xml_string.decode("utf-8", "replace")
+                hdr = _xml2dict(fromstring(decoded_string))
                 streams[StreamId] = hdr
-                logger.debug('  found stream ' + hdr['info']['name'][0])
+                logger.debug("  found stream " + hdr["info"]["name"][0])
                 # initialize per-stream temp data
                 temp[StreamId] = StreamData(hdr)
             elif tag == 3:
@@ -302,29 +306,37 @@ def load_xdf(filename,
                 # noinspection PyBroadException
                 try:
                     nsamples, stamps, values = _read_chunk3(f, temp[StreamId])
-                    logger.debug('  reading [%s,%s]' % (temp[StreamId].nchns,
-                                                            nsamples))
+                    logger.debug(
+                        "  reading [%s,%s]" % (temp[StreamId].nchns, nsamples)
+                    )
                     # optionally send through the on_chunk function
                     if on_chunk is not None:
-                        values, stamps, streams[StreamId] = on_chunk(values, stamps,
-                                                                     streams[StreamId], StreamId)
+                        values, stamps, streams[StreamId] = on_chunk(
+                            values, stamps, streams[StreamId], StreamId
+                        )
                     # append to the time series...
                     temp[StreamId].time_series.append(values)
                     temp[StreamId].time_stamps.append(stamps)
                 except Exception as e:
                     # an error occurred (perhaps a chopped-off file): emit a
                     # warning and scan forward to the next recognized chunk
-                    logger.error('found likely XDF file corruption (%s), '
-                                 'scanning forward to next boundary chunk.' % e)
+                    logger.error(
+                        "found likely XDF file corruption (%s), "
+                        "scanning forward to next boundary chunk." % e
+                    )
                     _scan_forward(f)
             elif tag == 6:
                 # read [StreamFooter] chunk
                 xml_string = f.read(chunklen - 6)
-                streams[StreamId]['footer'] = _xml2dict(ET.fromstring(xml_string))
+                streams[StreamId]["footer"] = _xml2dict(fromstring(xml_string))
             elif tag == 4:
                 # read [ClockOffset] chunk
-                temp[StreamId].clock_times.append(struct.unpack('<d', f.read(8))[0])
-                temp[StreamId].clock_values.append(struct.unpack('<d', f.read(8))[0])
+                temp[StreamId].clock_times.append(
+                    struct.unpack("<d", f.read(8))[0]
+                )
+                temp[StreamId].clock_values.append(
+                    struct.unpack("<d", f.read(8))[0]
+                )
             else:
                 # skip other chunk types (Boundary, ...)
                 f.read(chunklen - 2)
@@ -334,33 +346,39 @@ def load_xdf(filename,
         if stream.time_stamps:
             # stream with non-empty list of chunks
             stream.time_stamps = np.concatenate(stream.time_stamps)
-            if stream.fmt == 'string':
+            if stream.fmt == "string":
                 stream.time_series = list(itertools.chain(*stream.time_series))
             else:
                 stream.time_series = np.concatenate(stream.time_series)
         else:
             # stream without any chunks
             stream.time_stamps = np.zeros((0,))
-            if stream.fmt == 'string':
+            if stream.fmt == "string":
                 stream.time_series = []
             else:
                 stream.time_series = np.zeros((stream.nchns, 0))
 
     # perform (fault-tolerant) clock synchronization if requested
     if synchronize_clocks:
-        logger.info('  performing clock synchronization...')
-        temp = _clock_sync(temp, handle_clock_resets,
-                           clock_reset_threshold_stds,
-                           clock_reset_threshold_seconds,
-                           clock_reset_threshold_offset_stds,
-                           clock_reset_threshold_offset_seconds,
-                           winsor_threshold)
+        logger.info("  performing clock synchronization...")
+        temp = _clock_sync(
+            temp,
+            handle_clock_resets,
+            clock_reset_threshold_stds,
+            clock_reset_threshold_seconds,
+            clock_reset_threshold_offset_stds,
+            clock_reset_threshold_offset_seconds,
+            winsor_threshold,
+        )
 
     # perform jitter removal if requested
     if dejitter_timestamps:
-        logger.info('  performing jitter removal...')
-        temp = _jitter_removal(temp, jitter_break_threshold_seconds,
-                               jitter_break_threshold_samples,)
+        logger.info("  performing jitter removal...")
+        temp = _jitter_removal(
+            temp,
+            jitter_break_threshold_seconds,
+            jitter_break_threshold_samples,
+        )
     else:
         for stream in temp.values():
             duration = stream.time_stamps[-1] - stream.time_stamps[0]
@@ -369,15 +387,17 @@ def load_xdf(filename,
     for k in streams.keys():
         stream = streams[k]
         tmp = temp[k]
-        if 'stream_id' in stream['info']:  # this is non-standard
-            logger.warning('Found existing "stream_id" key with value {} in '
-                           'StreamHeader XML. Using the "stream_id" value {} '
-                           'from the beginning of the StreamHeader chunk '
-                           'instead.'.format(stream['info']['stream_id'], k))
-        stream['info']['stream_id'] = k
-        stream['info']['effective_srate'] = tmp.effective_srate
-        stream['time_series'] = tmp.time_series
-        stream['time_stamps'] = tmp.time_stamps
+        if "stream_id" in stream["info"]:  # this is non-standard
+            logger.warning(
+                "Found existing 'stream_id' key with value {} in "
+                "StreamHeader XML. Using the 'stream_id' value {} "
+                "from the beginning of the StreamHeader chunk "
+                "instead.".format(stream["info"]["stream_id"], k)
+            )
+        stream["info"]["stream_id"] = k
+        stream["info"]["effective_srate"] = tmp.effective_srate
+        stream["time_series"] = tmp.time_series
+        stream["time_stamps"] = tmp.time_stamps
 
     streams = [s for s in streams.values()]
     return streams, fileheader
@@ -391,20 +411,20 @@ def open_xdf(file):
 
     if isinstance(file, (io.RawIOBase, io.BufferedIOBase)):
         if isinstance(file, io.TextIOBase):
-            raise ValueError('file has to be opened in binary mode')
+            raise ValueError("file has to be opened in binary mode")
         f = file
     else:
         filename = Path(file)  # ensure convert to pathlib object
         # check absolute path after following symlinks
         if not filename.resolve().exists():
-            raise Exception('file %s does not exist.' % filename)
+            raise Exception("file %s does not exist." % filename)
 
-        if filename.suffix == '.xdfz' or filename.suffixes == ['.xdf', '.gz']:
-            f = gzip.open(str(filename), 'rb')
+        if filename.suffix == ".xdfz" or filename.suffixes == [".xdf", ".gz"]:
+            f = gzip.open(str(filename), "rb")
         else:
-            f = open(str(filename), 'rb')
-    if f.read(4) != b'XDF:':  # magic bytes
-        raise IOError('Invalid XDF file {}'.format(file))
+            f = open(str(filename), "rb")
+    if f.read(4) != b"XDF:":  # magic bytes
+        raise IOError("Invalid XDF file {}".format(file))
     return f
 
 
@@ -413,22 +433,21 @@ def _read_chunk3(f, s):
     nsamples = _read_varlen_int(f)
     # allocate space
     stamps = np.zeros((nsamples,))
-    if s.fmt == 'string':
+    if s.fmt == "string":
         # read a sample comprised of strings
-        values = [[None] * s.nchns
-                  for _ in range(nsamples)]
+        values = [[None] * s.nchns for _ in range(nsamples)]
         # for each sample...
         for k in range(nsamples):
             # read or deduce time stamp
-            if f.read(1) != b'\x00':
-                stamps[k] = struct.unpack('<d', f.read(8))[0]
+            if f.read(1) != b"\x00":
+                stamps[k] = struct.unpack("<d", f.read(8))[0]
             else:
-                stamps[k] = (s.last_timestamp + s.tdiff)
+                stamps[k] = s.last_timestamp + s.tdiff
             s.last_timestamp = stamps[k]
             # read the values
             for ch in range(s.nchns):
                 raw = f.read(_read_varlen_int(f))
-                values[k][ch] = raw.decode(errors='replace')
+                values[k][ch] = raw.decode(errors="replace")
     else:
         # read a sample comprised of numeric values
         values = np.zeros((nsamples, s.nchns), dtype=s.dtype)
@@ -437,8 +456,8 @@ def _read_chunk3(f, s):
         # for each sample...
         for k in range(values.shape[0]):
             # read or deduce time stamp
-            if f.read(1) != b'\x00':
-                stamps[k] = struct.unpack('<d', f.read(8))[0]
+            if f.read(1) != b"\x00":
+                stamps[k] = struct.unpack("<d", f.read(8))[0]
             else:
                 stamps[k] = s.last_timestamp + s.tdiff
             s.last_timestamp = stamps[k]
@@ -446,13 +465,13 @@ def _read_chunk3(f, s):
             f.readinto(raw)
             # no fromfile(), see
             # https://github.com/numpy/numpy/issues/13319
-            values[k, :] = np.frombuffer(raw,
-                                         dtype=s.dtype,
-                                         count=s.nchns)
+            values[k, :] = np.frombuffer(raw, dtype=s.dtype, count=s.nchns)
     return nsamples, stamps, values
 
 
 _read_varlen_int_buf = bytearray(1)
+
+
 def _read_varlen_int(f):
     """Read a variable-length integer."""
     if not f.readinto(_read_varlen_int_buf):
@@ -461,11 +480,11 @@ def _read_varlen_int(f):
     if nbytes == 1:
         return ord(f.read(1))
     elif nbytes == 4:
-        return struct.unpack('<I', f.read(4))[0]
+        return struct.unpack("<I", f.read(4))[0]
     elif nbytes == 8:
-        return struct.unpack('<Q', f.read(8))[0]
+        return struct.unpack("<Q", f.read(8))[0]
     else:
-        raise RuntimeError('invalid variable-length integer encountered.')
+        raise RuntimeError("invalid variable-length integer encountered.")
 
 
 def _xml2dict(t):
@@ -479,29 +498,49 @@ def _xml2dict(t):
 
 def _scan_forward(f):
     """Scan forward through file object until after the next boundary chunk."""
-    blocklen = 2**20
-    signature = bytes([0x43, 0xA5, 0x46, 0xDC, 0xCB, 0xF5, 0x41, 0x0F,
-                       0xB3, 0x0E, 0xD5, 0x46, 0x73, 0x83, 0xCB, 0xE4])
+    blocklen = 2 ** 20
+    signature = bytes(
+        [
+            0x43,
+            0xA5,
+            0x46,
+            0xDC,
+            0xCB,
+            0xF5,
+            0x41,
+            0x0F,
+            0xB3,
+            0x0E,
+            0xD5,
+            0x46,
+            0x73,
+            0x83,
+            0xCB,
+            0xE4,
+        ]
+    )
     while True:
         curpos = f.tell()
         block = f.read(blocklen)
         matchpos = block.find(signature)
         if matchpos != -1:
             f.seek(curpos + matchpos + len(signature))
-            logger.debug('  scan forward found a boundary chunk.')
+            logger.debug("  scan forward found a boundary chunk.")
             return True
         if len(block) < blocklen:
-            logger.debug('  scan forward reached end of file with no match.')
+            logger.debug("  scan forward reached end of file with no match.")
             return False
 
 
-def _clock_sync(streams,
-                handle_clock_resets=True,
-                reset_threshold_stds=5,
-                reset_threshold_seconds=5,
-                reset_threshold_offset_stds=10,
-                reset_threshold_offset_seconds=1,
-                winsor_threshold=0.0001):
+def _clock_sync(
+    streams,
+    handle_clock_resets=True,
+    reset_threshold_stds=5,
+    reset_threshold_seconds=5,
+    reset_threshold_offset_stds=10,
+    reset_threshold_offset_seconds=1,
+    winsor_threshold=0.0001,
+):
     for stream in streams.values():
         if len(stream.time_stamps) > 0:
             clock_times = stream.clock_times
@@ -509,16 +548,16 @@ def _clock_sync(streams,
             if not clock_times:
                 continue
 
-            # Detect clock resets (e.g., computer restarts during recording)
-            # if requested, this is only for cases where "everything goes
-            # wrong" during recording note that this is a fancy feature that
-            # is not needed for normal XDF compliance.
+            # Detect clock resets (e.g., computer restarts during recording) if
+            # requested, this is only for cases where "everything goes wrong"
+            # during recording note that this is a fancy feature that is not
+            # needed for normal XDF compliance.
             if handle_clock_resets and len(clock_times) > 1:
                 # First detect potential breaks in the synchronization data;
                 # this is only necessary when the importer should be able to
-                # deal with recordings where the computer that served a
-                # stream was restarted or hot-swapped during an ongoing
-                # recording, or the clock was reset otherwise.
+                # deal with recordings where the computer that served a stream
+                # was restarted or hot-swapped during an ongoing recording, or
+                # the clock was reset otherwise.
 
                 time_diff = np.diff(clock_times)
                 value_diff = np.abs(np.diff(clock_values))
@@ -527,8 +566,10 @@ def _clock_sync(streams,
 
                 # points where a glitch in the timing of successive clock
                 # measurements happened
-                mad = (np.median(np.abs(time_diff - median_ival)) +
-                       np.finfo(float).eps)
+                mad = (
+                    np.median(np.abs(time_diff - median_ival))
+                    + np.finfo(float).eps
+                )
                 cond1 = time_diff < 0
                 cond2 = (time_diff - median_ival) / mad > reset_threshold_stds
                 cond3 = time_diff - median_ival > reset_threshold_seconds
@@ -536,13 +577,17 @@ def _clock_sync(streams,
 
                 # Points where a glitch in successive clock value estimates
                 # happened
-                mad = (np.median(np.abs(value_diff - median_slope)) +
-                       np.finfo(float).eps)
+                mad = (
+                    np.median(np.abs(value_diff - median_slope))
+                    + np.finfo(float).eps
+                )
                 cond1 = value_diff < 0
-                cond2 = ((value_diff - median_slope) / mad >
-                         reset_threshold_offset_stds)
-                cond3 = (value_diff - median_slope >
-                         reset_threshold_offset_seconds)
+                cond2 = (
+                    value_diff - median_slope
+                ) / mad > reset_threshold_offset_stds
+                cond3 = (
+                    value_diff - median_slope > reset_threshold_offset_seconds
+                )
                 value_glitch = cond1 | (cond2 & cond3)
                 resets_at = time_glitch & value_glitch
 
@@ -551,8 +596,9 @@ def _clock_sync(streams,
                     ranges = [(0, len(clock_times) - 1)]
                 else:
                     indices = np.where(resets_at)[0]
-                    indices = np.hstack((0, indices, indices + 1,
-                                         len(resets_at) - 1))
+                    indices = np.hstack(
+                        (0, indices, indices + 1, len(resets_at) - 1)
+                    )
                     ranges = np.reshape(indices, (2, -1)).T
 
             # Otherwise we just assume that there are no clock resets
@@ -564,9 +610,9 @@ def _clock_sync(streams,
             for range_i in ranges:
                 if range_i[0] != range_i[1]:
                     e = np.ones((range_i[1] - range_i[0] + 1,))
-                    X = (e, np.array(clock_times[range_i[0]:range_i[1] + 1]))
+                    X = (e, np.array(clock_times[range_i[0] : range_i[1] + 1]))
                     X = np.reshape(np.hstack(X), (2, -1)).T / winsor_threshold
-                    y = np.array(clock_values[range_i[0]:range_i[1] + 1])
+                    y = np.array(clock_values[range_i[0] : range_i[1] + 1])
                     y /= winsor_threshold
                     # noinspection PyTypeChecker
                     coef.append(_robust_fit(X, y))
@@ -575,13 +621,15 @@ def _clock_sync(streams,
 
             # Apply the correction to all time stamps
             if len(ranges) == 1:
-                stream.time_stamps += coef[0][0] + (coef[0][1] *
-                                                    stream.time_stamps)
+                stream.time_stamps += coef[0][0] + (
+                    coef[0][1] * stream.time_stamps
+                )
             else:
                 for coef_i, range_i in zip(coef, ranges):
                     r = slice(range_i[0], range_i[1])
-                    stream.time_stamps[r] += (coef_i[0] +
-                                              coef_i[1] * stream.time_stamps[r])
+                    stream.time_stamps[r] += (
+                        coef_i[0] + coef_i[1] * stream.time_stamps[r]
+                    )
     return streams
 
 
@@ -592,8 +640,9 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
         if nsamples > 0 and stream.srate > 0:
             # Identify breaks in the time_stamps
             diffs = np.diff(stream.time_stamps)
-            b_breaks = diffs > np.max((threshold_seconds,
-                                       threshold_samples * stream.tdiff))
+            b_breaks = diffs > np.max(
+                (threshold_seconds, threshold_samples * stream.tdiff)
+            )
             # find indices (+ 1 to compensate for lost sample in np.diff)
             break_inds = np.where(b_breaks)[0] + 1
 
@@ -610,21 +659,24 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
                 X = np.concatenate((np.ones_like(idx), idx), axis=1)
                 y = stream.time_stamps[idx]
                 mapping = np.linalg.lstsq(X, y, rcond=-1)[0]
-                stream.time_stamps[idx] = (mapping[0] + mapping[1] * idx)
+                stream.time_stamps[idx] = mapping[0] + mapping[1] * idx
 
             # Recalculate effective_srate if possible
             counts = (seg_stops + 1) - seg_starts
             if np.any(counts):
                 # Calculate range segment duration (assuming last sample
                 # duration was exactly 1 * stream.tdiff)
-                durations = ((stream.time_stamps[seg_stops] + stream.tdiff) -
-                              stream.time_stamps[seg_starts])
+                durations = (
+                    stream.time_stamps[seg_stops] + stream.tdiff
+                ) - stream.time_stamps[seg_starts]
                 stream.effective_srate = np.sum(counts) / np.sum(durations)
 
         srate, effective_srate = stream.srate, stream.effective_srate
         if srate != 0 and np.abs(srate - effective_srate) / srate > 0.1:
-            msg = ("Stream %d: Calculated effective sampling rate %.4f Hz is"
-                   " different from specified rate %.4f Hz.")
+            msg = (
+                "Stream %d: Calculated effective sampling rate %.4f Hz is"
+                " different from specified rate %.4f Hz."
+            )
             logger.warning(msg, stream_id, effective_srate, srate)
 
     return streams
@@ -683,6 +735,7 @@ def match_streaminfos(stream_infos, parameters):
                   a "type" field equal to "EEG".
     """
     matches = []
+    match = False
     for request in parameters:
         for info in stream_infos:
             for key in request.keys():
@@ -690,7 +743,7 @@ def match_streaminfos(stream_infos, parameters):
                 if not match:
                     break
             if match:
-                matches.append(info['stream_id'])
+                matches.append(info["stream_id"])
 
     return list(set(matches))  # return unique values
 
@@ -736,17 +789,21 @@ def parse_chunks(chunks):
     streams = []
     for chunk in chunks:
         if chunk["tag"] == 2:  # stream header chunk
-            streams.append(dict(stream_id=chunk["stream_id"],
-                                name=chunk.get("name"),  # optional
-                                type=chunk.get("type"),  # optional
-                                source_id=chunk.get("source_id"),  # optional
-                                created_at=chunk.get("created_at"),  # optional
-                                uid=chunk.get("uid"),  # optional
-                                session_id=chunk.get("session_id"),  # optional
-                                hostname=chunk.get("hostname"),  # optional
-                                channel_count=int(chunk["channel_count"]),
-                                channel_format=chunk["channel_format"],
-                                nominal_srate=int(chunk["nominal_srate"])))
+            streams.append(
+                dict(
+                    stream_id=chunk["stream_id"],
+                    name=chunk.get("name"),  # optional
+                    type=chunk.get("type"),  # optional
+                    source_id=chunk.get("source_id"),  # optional
+                    created_at=chunk.get("created_at"),  # optional
+                    uid=chunk.get("uid"),  # optional
+                    session_id=chunk.get("session_id"),  # optional
+                    hostname=chunk.get("hostname"),  # optional
+                    channel_count=int(chunk["channel_count"]),
+                    channel_format=chunk["channel_format"],
+                    nominal_srate=int(chunk["nominal_srate"]),
+                )
+            )
     return streams
 
 
@@ -770,11 +827,11 @@ def _read_chunks(f):
             chunk["nbytes"] = _read_varlen_int(f)
         except EOFError:
             return
-        chunk["tag"] = struct.unpack('<H', f.read(2))[0]
+        chunk["tag"] = struct.unpack("<H", f.read(2))[0]
         if chunk["tag"] in [2, 3, 4, 6]:
             chunk["stream_id"] = struct.unpack("<I", f.read(4))[0]
             if chunk["tag"] == 2:  # parse StreamHeader chunk
-                xml = ET.fromstring(f.read(chunk["nbytes"] - 6).decode())
+                xml = fromstring(f.read(chunk["nbytes"] - 6).decode())
                 chunk = {**chunk, **_parse_streamheader(xml)}
             else:  # skip remaining chunk contents
                 f.seek(chunk["nbytes"] - 6, 1)

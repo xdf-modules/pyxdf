@@ -789,6 +789,7 @@ def parse_chunks(chunks):
     streams = []
     for chunk in chunks:
         if chunk["tag"] == 2:  # stream header chunk
+            # if you edit, check for consistency with parsing in load_xdf
             streams.append(
                 dict(
                     stream_id=chunk["stream_id"],
@@ -801,7 +802,7 @@ def parse_chunks(chunks):
                     hostname=chunk.get("hostname"),  # optional
                     channel_count=int(chunk["channel_count"]),
                     channel_format=chunk["channel_format"],
-                    nominal_srate=int(chunk["nominal_srate"]),
+                    nominal_srate=round(float(chunk["nominal_srate"])),
                 )
             )
     return streams
@@ -831,7 +832,9 @@ def _read_chunks(f):
         if chunk["tag"] in [2, 3, 4, 6]:
             chunk["stream_id"] = struct.unpack("<I", f.read(4))[0]
             if chunk["tag"] == 2:  # parse StreamHeader chunk
-                xml = fromstring(f.read(chunk["nbytes"] - 6).decode())
+                # if you edit, check for consistency with parsing in load_xdf
+                msg = f.read(chunk["nbytes"] - 6).decode("utf-8", "replace")
+                xml = fromstring(msg)
                 chunk = {**chunk, **_parse_streamheader(xml)}
             else:  # skip remaining chunk contents
                 f.seek(chunk["nbytes"] - 6, 1)

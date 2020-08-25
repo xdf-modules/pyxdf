@@ -609,11 +609,11 @@ def _clock_sync(
             coef = []
             for range_i in ranges:
                 if range_i[0] != range_i[1]:
-                    e = np.ones((range_i[1] - range_i[0] + 1,))
-                    X = (e, np.array(clock_times[range_i[0] : range_i[1] + 1]))
-                    X = np.reshape(np.hstack(X), (2, -1)).T / winsor_threshold
-                    y = np.array(clock_values[range_i[0] : range_i[1] + 1])
-                    y /= winsor_threshold
+                    start, stop = range_i[0], range_i[1] + 1
+                    e = np.ones((stop - start,))
+                    X = np.column_stack([e, clock_times[start:stop]])
+                    X /= winsor_threshold
+                    y = clock_values[start:stop] / winsor_threshold
                     # noinspection PyTypeChecker
                     coef.append(_robust_fit(X, y))
                 else:

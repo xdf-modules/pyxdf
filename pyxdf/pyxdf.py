@@ -611,11 +611,12 @@ def _clock_sync(
                 if range_i[0] != range_i[1]:
                     start, stop = range_i[0], range_i[1] + 1
                     e = np.ones((stop - start,))
-                    X = np.column_stack([e, clock_times[start:stop]])
-                    X /= winsor_threshold
-                    y = clock_values[start:stop] / winsor_threshold
+                    X = np.column_stack([e, np.array(clock_times[start:stop]) / winsor_threshold])
+                    y = np.array(clock_values[start:stop]) / winsor_threshold
                     # noinspection PyTypeChecker
-                    coef.append(_robust_fit(X, y))
+                    _coefs = _robust_fit(X, y)
+                    _coefs[0] *= winsor_threshold
+                    coef.append(_coefs)
                 else:
                     coef.append((clock_values[range_i[0]], 0))
 
@@ -702,6 +703,8 @@ def _robust_fit(A, y, rho=1, iters=1000):
     http://www.stanford.edu/~boyd/papers/distr_opt_stat_learning_admm.html
 
     """
+    offset = np.min(A[:, 1])
+    A[:, 1] = A[:, 1] - offset  # Don't use -= operator here!
     Aty = np.dot(A.T, y)
     L = np.linalg.cholesky(np.dot(A.T, A))
     U = L.T
@@ -715,6 +718,7 @@ def _robust_fit(A, y, rho=1, iters=1000):
         tmp = np.maximum(0, (1 - (1 + 1 / rho) * np.abs(d_inv)))
         z = rho / (1 + rho) * d + 1 / (1 + rho) * tmp * d
         u = d - z
+    x[0] -= x[1] * offset
     return x
 
 

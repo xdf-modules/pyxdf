@@ -46,6 +46,8 @@ class StreamData:
         self.srate = float(xml["info"]["nominal_srate"][0])
         # format string (int8, int16, int32, float32, double64, string)
         self.fmt = xml["info"]["channel_format"][0]
+        # Whether or not to skip processing this chunk
+        self.skip = False
         # list of time-stamp chunks (each an ndarray, in seconds)
         self.time_stamps = []
         # list of time-series chunks (each an ndarray or list of lists)
@@ -81,6 +83,7 @@ def load_xdf(
     clock_reset_threshold_offset_seconds=1,
     clock_reset_threshold_offset_stds=10,
     winsor_threshold=0.0001,
+    stream_headers_only=False,
     verbose=None
 ):
     """Import an XDF file.
@@ -112,6 +115,9 @@ def load_xdf(
             select_streams=[{'type': 'EEG'}, {'name': 'TestAMP'}], streams
             matching either the type *or* the name will be loaded.
           - None: load all streams (default).
+
+        stream_headers_only: Passing True will cause all non-StreamHeader chunks to be skipped.
+          Keyword arguments other than select_streams and verbose will be ignored.
 
         verbose : Passing True will set logging level to DEBUG, False will set
           it to WARNING, and None will use root logger level. (default: None)
@@ -199,126 +205,42 @@ def load_xdf(
     if verbose is not None:
         logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
 
-    if isinstance(select_streams, int):
-        select_streams = [select_streams]
-
     logger.info("Importing XDF file %s..." % filename)
-
-    # if select_streams is an int or a list of int, load only streams
-    # associated with the corresponding stream IDs
-    # if select_streams is a list of dicts, use this to query and load streams
-    # associated with these properties
-    # if select_streams is None:
-    #     pass
-    # elif isinstance(select_streams, int):
-    #     select_streams = [select_streams]
-    # elif all([isinstance(elem, dict) for elem in select_streams]):
-    #     select_streams = match_streaminfos(
-    #         resolve_streams(filename), select_streams
-    #     )
-    #     if not select_streams:  # no streams found
-    #         raise ValueError("No matching streams found.")
-    # elif not all([isinstance(elem, int) for elem in select_streams]):
-    #     raise ValueError(
-    #         "Argument 'select_streams' must be an int, a list of ints or a "
-    #         "list of dicts."
-    #     )
 
     # dict of returned streams, in order of appearance, indexed by stream id
     streams = OrderedDict()
     # dict of per-stream temporary data (StreamData), indexed by stream id
-    temp = {}
+    temp_stream_data = {}
     # XML content of the file header chunk
     fileheader = None
 
     with open_xdf(filename) as f:
-        # for each chunk
-        while True:
-            # read [NumLengthBytes], [Length]
-            chunklen, err = _read_chunk_length(f)
-            if err == 1:
+        for chunk in _read_chunks(f, select_streams=select_streams,
+                                  stream_headers_only=stream_headers_only, skip_desc=False,
+                                  on_Samples_chunk=on_chunk):
+            # _read_chunks generator took care of most of the hard work involved in reading the data and error handling.
+            #  Here we simply build up our streams dictionary and temporary data holders.
+            if chunk is None:
                 continue
-            elif err == -1:
-                break
-
-            # read [Tag]
-            tag = struct.unpack("<H", f.read(2))[0]
-            log_str = " Read tag: {} at {} bytes, length={}"
-            log_str = log_str.format(tag, f.tell(), chunklen)
-
-            # Chunks of type [StreamHeader], [Samples], [ClockOffset], and [StreamFooter]
-            #  all begin with a StreamId.
-            StreamId = None
-            if tag in [2, 3, 4, 6]:
-                StreamId, err, log_str = _read_stream_id(f, log_str)
-                if err == 1:
-                    continue
-
-            if StreamId is not None and select_streams is not None:
-                if StreamId not in select_streams:
-                    f.read(chunklen - 2 - 4)  # skip remaining chunk contents
-                    continue
-
-            # read the chunk's [Content] (except StreamId already read for those chunk types)...
-            if tag == 1:
-                # read [FileHeader] chunk
-                xml_string = f.read(chunklen - 2)
-                fileheader = _xml2dict(fromstring(xml_string))
-            elif tag == 2:
-                # read [StreamHeader] chunk...
-                # read [Content]
-                xml_string = f.read(chunklen - 6)
-                decoded_string = xml_string.decode("utf-8", "replace")
-                hdr = _xml2dict(fromstring(decoded_string), skip_desc=False)
-                streams[StreamId] = hdr
-                logger.debug("  found stream " + hdr["info"]["name"][0])
-                # initialize per-stream temp data
-                temp[StreamId] = StreamData(hdr)
-            elif tag == 3:
-                # read [Samples] chunk...
-                # noinspection PyBroadException
-                try:
-                    nsamples, stamps, values = _read_chunk3(f, temp[StreamId])
-                    logger.debug(
-                        "  reading [%s,%s]" % (temp[StreamId].nchns, nsamples)
-                    )
-                    # optionally send through the on_chunk function
-                    if on_chunk is not None:
-                        values, stamps, streams[StreamId] = on_chunk(
-                            values, stamps, streams[StreamId], StreamId
-                        )
-                    # append to the time series...
-                    temp[StreamId].time_series.append(values)
-                    temp[StreamId].time_stamps.append(stamps)
-                except Exception as e:
-                    # an error occurred (perhaps a chopped-off file): emit a
-                    # warning and scan forward to the next recognized chunk
-                    logger.error(
-                        "found likely XDF file corruption (%s), "
-                        "scanning forward to next boundary chunk." % e
-                    )
-                    _scan_forward(f)
-            elif tag == 4:
-                # read [ClockOffset] chunk
-                temp[StreamId].clock_times.append(
-                    struct.unpack("<d", f.read(8))[0]
-                )
-                temp[StreamId].clock_values.append(
-                    struct.unpack("<d", f.read(8))[0]
-                )
-            elif tag == 5:
-                # read [Boundary] chunk. Currently not used.
-                f.seek(chunklen - 2, 1)
-            elif tag == 6:
-                # read [StreamFooter] chunk
-                xml_string = f.read(chunklen - 6)
-                streams[StreamId]["footer"] = _xml2dict(fromstring(xml_string))
-            else:
-                # skip other chunk types
-                f.read(chunklen - 2)
+            if chunk["tag"] == 1:
+                fileheader = {k: v for k, v in chunk.items() if k not in ["tag", "nbytes", "stream_id"]}
+            elif chunk["tag"] == 2:
+                temp_stream_data[chunk["stream_id"]] = StreamData(chunk)
+                streams[chunk["stream_id"]] = {k: v for k, v in chunk.items()
+                                               if k not in ["tag", "nbytes", "stream_id"]}
+            elif chunk["tag"] == 3:
+                # append to the time series...
+                temp_stream_data[chunk["stream_id"]].time_series.append(chunk["values"])
+                temp_stream_data[chunk["stream_id"]].time_stamps.append(chunk["stamps"])
+            elif chunk["tag"] == 4:
+                temp_stream_data[chunk["stream_id"]].clock_times.append(chunk["clock_time"])
+                temp_stream_data[chunk["stream_id"]].clock_values.append(chunk["clock_value"])
+            elif chunk["tag"] == 6:
+                streams[chunk["stream_id"]]["footer"] = {k: v for k, v in chunk.items()
+                                                         if k not in ["tag", "nbytes", "stream_id"]}
 
     # Concatenate the signal across chunks
-    for stream in temp.values():
+    for stream in temp_stream_data.values():
         if stream.time_stamps:
             # stream with non-empty list of chunks
             stream.time_stamps = np.concatenate(stream.time_stamps)
@@ -337,8 +259,8 @@ def load_xdf(
     # perform (fault-tolerant) clock synchronization if requested
     if synchronize_clocks:
         logger.info("  performing clock synchronization...")
-        temp = _clock_sync(
-            temp,
+        temp_stream_data = _clock_sync(
+            temp_stream_data,
             handle_clock_resets,
             clock_reset_threshold_stds,
             clock_reset_threshold_seconds,
@@ -350,19 +272,19 @@ def load_xdf(
     # perform jitter removal if requested
     if dejitter_timestamps:
         logger.info("  performing jitter removal...")
-        temp = _jitter_removal(
-            temp,
+        temp_stream_data = _jitter_removal(
+            temp_stream_data,
             jitter_break_threshold_seconds,
             jitter_break_threshold_samples,
         )
     else:
-        for stream in temp.values():
+        for stream in temp_stream_data.values():
             duration = stream.time_stamps[-1] - stream.time_stamps[0]
             stream.effective_srate = len(stream.time_stamps) / duration
 
     for k in streams.keys():
         stream = streams[k]
-        tmp = temp[k]
+        tmp = temp_stream_data[k]
         if "stream_id" in stream["info"]:  # this is non-standard
             logger.warning(
                 "Found existing 'stream_id' key with value {} in "
@@ -763,13 +685,17 @@ def match_streaminfos(stream_infos, parameters):
         can be obtained using the function resolve_streams.
     parameters : list of dicts
         List of dicts containing key/values that should be present in streams.
+        Multiple keys in a dict are combined with logical AND.
+        Multiple dicts are combined with logical OR.
         Examples: [{"name": "Keyboard"}] matches all streams with a "name"
                   field equal to "Keyboard".
-                  [{"name": "Keyboard"}, {"type": "EEG"}] matches all streams
-                  with a "name" field equal to "Keyboard" and all streams with
-                  a "type" field equal to "EEG".
+                  [{"name": "MacAudio", "type": "Audio"}, {"type": "EEG"}]
+                  matches all streams with either
+                  (a) "type" field equal to "EEG" OR
+                  (b) both "name" field equal to "MacAudio" and "type" field
+                  equal to "Audio".
     """
-    matches = []
+    matches = set()
     match = False
     for request in parameters:
         for info in stream_infos:
@@ -778,9 +704,9 @@ def match_streaminfos(stream_infos, parameters):
                 if not match:
                     break
             if match:
-                matches.append(info["stream_id"])
+                matches.add(info["stream_id"])
 
-    return list(set(matches))  # return unique values
+    return list(matches)
 
 
 def resolve_streams(fname):
@@ -814,7 +740,7 @@ def parse_xdf(fname, stream_headers_only=False):
     """
     chunks = []
     with open_xdf(fname) as f:
-        for chunk in _read_chunks(f, stream_headers_only=stream_headers_only):
+        for chunk in _read_chunks(f, stream_headers_only=stream_headers_only, skip_desc=stream_headers_only):
             chunks.append(chunk)
     return chunks
 
@@ -832,7 +758,7 @@ def parse_stream_header_chunks(chunks):
     return streams
 
 
-def _read_chunks(f, select_streams=None, stream_headers_only=False, on_Samples_chunk=None):
+def _read_chunks(f, select_streams=None, stream_headers_only=False, skip_desc=False, on_Samples_chunk=None):
     """Read and yield XDF chunks.
 
     Parameters
@@ -840,9 +766,25 @@ def _read_chunks(f, select_streams=None, stream_headers_only=False, on_Samples_c
     f : file handle
         File handle of XDF file.
 
-    select_streams:
+    select_streams : int | list[int] | list[dict] | None
+          One or more stream IDs to load. Accepted values are:
+          - int or list[int]: load only specified stream IDs, e.g.
+            select_streams=5 loads only the stream with stream ID 5, whereas
+            select_streams=[2, 4] loads only streams with stream IDs 2 and 4.
+          - list[dict]: load only streams matching a query, e.g.
+            select_streams=[{'type': 'EEG'}] loads all streams of type 'EEG'.
+            Entries within a dict must all match a stream, e.g.
+            select_streams=[{'type': 'EEG', 'name': 'TestAMP'}] matches streams
+            with both type 'EEG' *and* name 'TestAMP'. If
+            select_streams=[{'type': 'EEG'}, {'name': 'TestAMP'}], streams
+            matching either the type *or* the name will be loaded.
+          - None: load all streams (default).
 
-    stream_headers_only:
+    stream_headers_only: Passing True will cause all non-StreamHeader chunks to be skipped.
+          Keyword arguments other than select_streams and verbose will be ignored.
+
+    skip_desc: (default False) Passing True will cause the stream header to ignore the 'desc' field,
+          typically used for channel information.
 
     on_Samples_chunk: (optional) function to call on data extracted from Samples chunk.
         Function must have the following signature:
@@ -853,6 +795,16 @@ def _read_chunks(f, select_streams=None, stream_headers_only=False, on_Samples_c
     chunk : dict
         XDF chunk.
     """
+    if isinstance(select_streams, int):
+        select_streams = [select_streams]
+    if (select_streams is not None) \
+            and (not all([isinstance(elem, dict) for elem in select_streams])) \
+            and (not all([isinstance(elem, int) for elem in select_streams])):
+        raise ValueError(
+            "Argument 'select_streams' must be an int, a list of ints or a "
+            "list of dicts."
+        )
+
     # dict of stream headers, in order of appearance, indexed by stream id
     #  This is necessary only for on_Samples_chunk
     temp_stream_headers = OrderedDict()
@@ -866,42 +818,66 @@ def _read_chunks(f, select_streams=None, stream_headers_only=False, on_Samples_c
         if err == -1:
             return
         elif err == 1:
-            # Couldn't read chunk length but could skip ahead to next chunk.
+            # Couldn't read chunk length but not EOF. _read_chunk_length already seeked next chunk.
             yield None
-            continue  # Next call to generator will start at top.
+            continue
 
         chunk["tag"] = struct.unpack("<H", f.read(2))[0]
         log_str = " Read tag: {} at {} bytes, length={}"
         log_str = log_str.format(chunk["tag"], f.tell(), chunk["nbytes"])
+        already_read_nbytes = 2
 
         # Chunks of type [StreamHeader], [Samples], [ClockOffset], and [StreamFooter]
         #  all begin with a StreamId.
         if chunk["tag"] in [2, 3, 4, 6]:
             chunk["stream_id"], err, log_str = _read_stream_id(f, log_str)
+            already_read_nbytes += 4
             if err == 1:
+                # _read_stream_id already handled seek to next chunk.
                 yield None
                 continue
 
-        if "stream_id" in chunk and select_streams is not None:
-            print(f"TODO: Check if {chunk['stream_id']} in select_streams, otherwise yield and continue")
+        if stream_headers_only and chunk["tag"] != 2:
+            f.seek(chunk["nbytes"] - already_read_nbytes, 1)
+            yield None
+            continue
 
-        if chunk["tag"] == 1 and not stream_headers_only:
+        if ("stream_id" in chunk) and (chunk["stream_id"] in temp_data) and temp_data[chunk["stream_id"]].skip:
+            f.seek(chunk["nbytes"] - already_read_nbytes, 1)
+            yield None
+            continue
+
+        # Finally, a chunk we actually want...
+        if chunk["tag"] == 1:
             # read [FileHeader] chunk
-            xml_string = f.read(chunk["nbytes"] - 2)
+            xml_string = f.read(chunk["nbytes"] - already_read_nbytes)
             file_header = _xml2dict(fromstring(xml_string))
             chunk = {**chunk, **file_header}
         elif chunk["tag"] == 2:
             # read and parse [StreamHeader] chunk...
-            msg = f.read(chunk["nbytes"] - 6).decode("utf-8", "replace")
+            msg = f.read(chunk["nbytes"] - already_read_nbytes).decode("utf-8", "replace")
             xml = fromstring(msg)
-            stream_header = _xml2dict(xml, skip_desc=stream_headers_only)
+            stream_header = _xml2dict(xml, skip_desc=skip_desc)
             stream_header["info"] = _normalize_header(stream_header["info"])
             temp_stream_headers[chunk["stream_id"]] = stream_header
+            temp_data[chunk["stream_id"]] = StreamData(stream_header)
+            is_match = True
+            if select_streams is not None:
+                if all([isinstance(elem, dict) for elem in select_streams]):
+                    flatted_header = {k: v[0] if isinstance(v, list) and (len(v) == 1) else v
+                                      for k, v in stream_header["info"].items()}
+                    is_match = chunk["stream_id"] in match_streaminfos(
+                        [{"stream_id": chunk["stream_id"], **flatted_header}], select_streams)
+                else:  # select_streams is a list of ints
+                    is_match = chunk["stream_id"] in select_streams
+            temp_data[chunk["stream_id"]].skip = not is_match
+            if temp_data[chunk["stream_id"]].skip:
+                yield None
+                continue
             chunk = {**chunk, **stream_header}
             logger.debug("  found stream " + chunk["info"]["name"][0])
             # initialize per-stream temp data
-            temp_data[chunk["stream_id"]] = StreamData(stream_header)
-        elif chunk["tag"] == 3 and not stream_headers_only:
+        elif chunk["tag"] == 3:
             # read [Samples] chunk...
             # To be able to properly read chunk 3, we have to have some history of its data.
             # noinspection PyBroadException
@@ -925,20 +901,19 @@ def _read_chunks(f, select_streams=None, stream_headers_only=False, on_Samples_c
                 _scan_forward(f)
                 yield None
                 continue
-        elif chunk["tag"] == 4 and not stream_headers_only:
+        elif chunk["tag"] == 4:
             # read [ClockOffset] chunk
             chunk["clock_time"] = struct.unpack("<d", f.read(8))[0]
             chunk["clock_value"] = struct.unpack("<d", f.read(8))[0]
-        elif chunk["tag"] == 5 and not stream_headers_only:
+        elif chunk["tag"] == 5:
             # read [Boundary] chunk. Not implemented.
-            f.seek(chunk["nbytes"] - 2, 1)
-        elif chunk["tag"] == 6 and not stream_headers_only:
+            f.seek(chunk["nbytes"] - already_read_nbytes, 1)
+        elif chunk["tag"] == 6:
             # read [StreamFooter] chunk
-            xml_string = f.read(chunk["nbytes"] - 6)
+            xml_string = f.read(chunk["nbytes"] - already_read_nbytes)
             stream_footer = _xml2dict(fromstring(xml_string))
             chunk = {**chunk, **stream_footer}
         else:
-            already_read_nbytes = 6 if chunk["tag"] in [2, 3, 4, 6] else 2
             f.seek(chunk["nbytes"] - already_read_nbytes, 1)  # skip remaining chunk contents
         yield chunk
 

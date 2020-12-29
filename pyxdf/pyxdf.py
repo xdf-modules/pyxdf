@@ -703,8 +703,9 @@ def _robust_fit(A, y, rho=1, iters=1000):
     http://www.stanford.edu/~boyd/papers/distr_opt_stat_learning_admm.html
 
     """
+    A = np.copy(A)  # Don't mutate input.
     offset = np.min(A[:, 1])
-    A[:, 1] = A[:, 1] - offset  # Don't use -= operator here!
+    A[:, 1] -= offset
     Aty = np.dot(A.T, y)
     L = np.linalg.cholesky(np.dot(A.T, A))
     U = L.T

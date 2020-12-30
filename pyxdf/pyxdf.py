@@ -751,10 +751,13 @@ def parse_stream_header_chunks(chunks):
     for chunk in chunks:
         if chunk is not None and chunk["tag"] == 2:  # stream header chunk
             # stream header info already normalized. Here we need to convert len=1 lists to single items.
-            streams.append({
+            flatted_stream_header = {
                 k: v[0] if isinstance(v, list) and (len(v) == 1) else v
                 for k, v in chunk["info"].items()
-            })
+            }
+            if "stream_id" in chunk:
+                flatted_stream_header["stream_id"] = chunk["stream_id"]
+            streams.append(flatted_stream_header)
     return streams
 
 

@@ -727,7 +727,7 @@ def resolve_streams(fname):
     stream_infos : list of dicts
         List of dicts containing information on each stream.
     """
-    return parse_stream_header_chunks(parse_xdf(fname, stream_headers_only=True))
+    return parse_chunks(parse_xdf(fname, stream_headers_only=True))
 
 
 def parse_xdf(fname, stream_headers_only=False):
@@ -750,7 +750,7 @@ def parse_xdf(fname, stream_headers_only=False):
     return chunks
 
 
-def parse_stream_header_chunks(chunks):
+def parse_chunks(chunks):
     """Parse stream header chunks and extract information on individual streams."""
     streams = []
     for chunk in chunks:

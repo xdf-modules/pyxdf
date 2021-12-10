@@ -381,8 +381,11 @@ def load_xdf(
         )
     else:
         for stream in temp.values():
-            duration = stream.time_stamps[-1] - stream.time_stamps[0]
-            stream.effective_srate = len(stream.time_stamps) / duration
+            if len(stream.time_stamps) > 1:
+                duration = stream.time_stamps[-1] - stream.time_stamps[0]
+                stream.effective_srate = len(stream.time_stamps) / duration
+            else:
+                stream.effective_srate = 0.0
 
     for k in streams.keys():
         stream = streams[k]
@@ -611,7 +614,13 @@ def _clock_sync(
                 if range_i[0] != range_i[1]:
                     start, stop = range_i[0], range_i[1] + 1
                     e = np.ones((stop - start,))
-                    X = np.column_stack([e, np.array(clock_times[start:stop]) / winsor_threshold])
+                    X = np.column_stack(
+                        [
+                            e,
+                            np.array(clock_times[start:stop])
+                            / winsor_threshold,
+                        ]
+                    )
                     y = np.array(clock_values[start:stop]) / winsor_threshold
                     # noinspection PyTypeChecker
                     _coefs = _robust_fit(X, y)

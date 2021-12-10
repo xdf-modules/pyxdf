@@ -613,10 +613,9 @@ def _clock_sync(
             for range_i in ranges:
                 if range_i[0] != range_i[1]:
                     start, stop = range_i[0], range_i[1] + 1
-                    e = np.ones((stop - start,))
                     X = np.column_stack(
                         [
-                            e,
+                            np.ones((stop - start,)),
                             np.array(clock_times[start:stop])
                             / winsor_threshold,
                         ]

@@ -34,7 +34,7 @@ class StreamData:
         fmts = dict(
             double64=np.float64,
             float32=np.float32,
-            string=np.object,
+            string=object,
             int32=np.int32,
             int16=np.int16,
             int8=np.int8,

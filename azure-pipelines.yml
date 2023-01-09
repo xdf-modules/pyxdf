@@ -7,20 +7,14 @@ trigger:
     - v*
   branches:
     include:
-    - master
+    - main
 
 pool:
-  vmImage: 'Ubuntu-16.04'
+  vmImage: 'ubuntu-latest'
 strategy:
   matrix:
-    #Python27:
-    #  python.version: '2.7'
-    #Python35:
-    #  python.version: '3.5'
-    Python36:
-      python.version: '3.6'
-    #Python37:
-    #  python.version: '3.7'
+    Python37:
+      python.version: '3.7'
 
 steps:
 - task: UsePythonVersion@0

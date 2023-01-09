@@ -1,3 +1,7 @@
+## [UNRELEASED] - YYYY-MM-DD
+### Fixed
+- Fix invalid `np.object` type ([#87](https://github.com/xdf-modules/xdf-Python/pull/87) by [Clemens Brunner](https://github.com/cbrnr))
+
 ## [1.16.3] - 2020-08-07
 ### Added
 - Add Cython type hints (requires optional local compilation) ([#17](https://github.com/xdf-modules/xdf-python/pull/17) by [Tristan Stenner](https://github.com/tstenner))

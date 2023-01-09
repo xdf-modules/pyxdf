@@ -1,6 +1,8 @@
-## [UNRELEASED] - YYYY-MM-DD
+## [1.16.4] - 2023-01-09
 ### Fixed
 - Fix invalid `np.object` type ([#87](https://github.com/xdf-modules/xdf-Python/pull/87) by [Clemens Brunner](https://github.com/cbrnr))
+- Fix robust fit for large timestamps ([#73](https://github.com/xdf-modules/xdf-Python/pull/73) by [Chadwick Boulay](https://github.com/cboulay))
+- Fix loading stream with no samples when `dejitter_timestamps=False` ([#82](https://github.com/xdf-modules/xdf-python/pull/82) by [Robert Guggenberger](https://github.com/agricolab))
 
 ## [1.16.3] - 2020-08-07
 ### Added

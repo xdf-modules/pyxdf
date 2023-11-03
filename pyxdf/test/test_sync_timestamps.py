@@ -53,8 +53,22 @@ def synced(streams):
     return synced
 
 
+@pytest.fixture(scope="session")
+def resampled(streams):
+    resampled = _sync_timestamps(deepcopy(streams), use_samplingrate=256)
+    return resampled
+
+
 # %% test
-def test_samplingrate(synced):
+def test_samplingrate_resampled(resampled):
+    "check that for all streams the sampling rate is identical to the fastest"
+    for s in resampled.values():
+        assert s["info"]["effective_srate"] == 256
+        efs = 1 / np.min(np.diff(s["time_stamps"]))
+        assert (efs - 256) < 0.001
+
+
+def test_samplingrate_highest(synced):
     "check that for all streams the sampling rate is identical to the fastest"
     for s in synced.values():
         assert s["info"]["effective_srate"] == 1000

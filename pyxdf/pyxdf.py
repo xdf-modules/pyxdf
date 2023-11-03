@@ -83,6 +83,7 @@ def load_xdf(
     winsor_threshold=0.0001,
     verbose=None,
     sync_timestamps=False,
+    use_samplingrate="highest",
     overlap_timestamps=False,
 ):
     """Import an XDF file.
@@ -125,8 +126,8 @@ def load_xdf(
           sampled streams. (default: true)
 
         sync_timestamps: {bool str}
-            sync timestamps of all streams sample-wise with the stream to the
-            highest effective sampling rate. Using sync_timestamps with any
+            sync timestamps of all streams sample-wise with the stream of the
+            highest effective sampling rate (or as set in use_samplingrate). Using sync_timestamps with any
             method other than linear has dependency on scipy, which is not a
             hard requirement of pyxdf. If scipy is not installed in your
             environment, the method supports linear interpolation with
@@ -137,6 +138,11 @@ def load_xdf(
             str:<'linear’, ‘nearest’, ‘zero’, ‘slinear’, ‘quadratic’, ‘cubic’,
             ‘previous’, ‘next’> for method inherited from
             scipy.interpolate.interp1d.
+
+        use_samplingrate: {int str} = "highest"
+            resamples all channels to an effective sampling rate as given by this argument, using the method as defined by sync_timestamps. Will do nothing if sync_timestamps is False or the sampling rate is not larger than zero.
+            int>0: resample to this sampling rate.
+            str:<'highest'> use the highest
 
         overlap_timestamps: bool
             If true, return only overlapping streams, i.e. all streams
@@ -430,7 +436,9 @@ def load_xdf(
         if type(sync_timestamps) is not str:
             sync_timestamps = "linear"
             logger.warning('sync_timestamps defaults to "linear"')
-        streams = _sync_timestamps(streams, kind=sync_timestamps)
+        streams = _sync_timestamps(
+            streams, kind=sync_timestamps, use_samplingrate=use_samplingrate
+        )
 
     # limit streams to their overlapping periods
     if overlap_timestamps:
@@ -922,7 +930,7 @@ def _interpolate(
             return np.interp(new_x, xp=x, fp=y, left=np.NaN, right=np.NaN)
 
 
-def _sync_timestamps(streams, kind="linear"):
+def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
     """Sync all streams to the fastest sampling rate by shifting or upsampling.
 
     Depending on a streams channel-format, extrapolation is performed using
@@ -945,7 +953,6 @@ def _sync_timestamps(streams, kind="linear"):
     srate_key = "effective_srate"
     srates = [stream["info"][srate_key] for stream in streams.values()]
     max_fs = max(srates, default=0)
-
     if max_fs == 0:  # either no valid stream or all streams are async
         return streams
     if srates.count(max_fs) > 1:
@@ -961,22 +968,34 @@ def _sync_timestamps(streams, kind="linear"):
     # indexing first and last might miss the earliest/latest
     # we therefore take the min and max timestamp
     stamps = [stream["time_stamps"] for stream in streams.values()]
-    ts_first = min((min(s) for s in stamps))
-    ts_last = max((max(s) for s in stamps))
+    ts_first = min((min(s) for s in stamps))  # earliest sample of all streams
+    ts_last = max((max(s) for s in stamps))  # latest sample of all streams
 
     # generate new timestamps
     # based on extrapolation of the fastest timestamps towards the maximal
     # time range of the whole recording
-    fs_step = 1.0 / max_fs
-    new_timestamps = stamps[srates.index(max_fs)]
-    num_steps = int((new_timestamps[0] - ts_first) / fs_step) + 1
-    front_stamps = np.linspace(ts_first, new_timestamps[0], num_steps)
-    num_steps = int((ts_last - new_timestamps[-1]) / fs_step) + 1
-    end_stamps = np.linspace(new_timestamps[-1], ts_last, num_steps)
-
-    new_timestamps = np.concatenate(
-        (front_stamps, new_timestamps[1:-1], end_stamps), axis=0
-    )
+    if use_samplingrate == "highest":
+        new_srate = max_fs
+    elif type(use_samplingrate) == int:
+        new_srate = use_samplingrate
+    else:
+        raise NotImplementedError(
+            f"Unknown parameter for use_samplingrate: {use_samplingrate}"
+        )
+    fs_step = 1.0 / new_srate
+    if new_srate == max_fs:
+        new_timestamps = stamps[
+            srates.index(max_fs)
+        ]  # pick fastest stream regardless of finally used srate
+        num_steps = int((new_timestamps[0] - ts_first) / fs_step) + 1
+        front_stamps = np.linspace(ts_first, new_timestamps[0], num_steps)
+        num_steps = int((ts_last - new_timestamps[-1]) / fs_step) + 1
+        end_stamps = np.linspace(new_timestamps[-1], ts_last, num_steps)
+        new_timestamps = np.concatenate(
+            (front_stamps, new_timestamps[1:-1], end_stamps), axis=0
+        )
+    else:
+        new_timestamps = np.arange(ts_first, ts_last, fs_step)
 
     # interpolate or shift all streams to the new timestamps
     for stream in streams.values():
@@ -1036,7 +1055,7 @@ def _sync_timestamps(streams, kind="linear"):
                 "channel_format="
                 "{}".format(channel_format)
             )
-        stream["info"]["effective_srate"] = max_fs
+        stream["info"]["effective_srate"] = new_srate
 
     return streams
 

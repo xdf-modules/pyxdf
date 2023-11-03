@@ -17,7 +17,7 @@ from xml.etree.ElementTree import fromstring
 from collections import OrderedDict, defaultdict
 import logging
 from pathlib import Path
-
+import warnings
 import numpy as np
 
 
@@ -81,7 +81,9 @@ def load_xdf(
     clock_reset_threshold_offset_seconds=1,
     clock_reset_threshold_offset_stds=10,
     winsor_threshold=0.0001,
-    verbose=None
+    verbose=None,
+    sync_timestamps=False,
+    overlap_timestamps=False,
 ):
     """Import an XDF file.
 
@@ -122,6 +124,27 @@ def load_xdf(
         dejitter_timestamps : Whether to perform jitter removal for regularly
           sampled streams. (default: true)
 
+        sync_timestamps: {bool str}
+            sync timestamps of all streams sample-wise with the stream to the
+            highest effective sampling rate. Using sync_timestamps with any
+            method other than linear has dependency on scipy, which is not a
+            hard requirement of pyxdf. If scipy is not installed in your
+            environment, the method supports linear interpolation with
+            numpy.
+
+            False -> no syncing
+            True -> linear syncing
+            str:<'linear’, ‘nearest’, ‘zero’, ‘slinear’, ‘quadratic’, ‘cubic’,
+            ‘previous’, ‘next’> for method inherited from
+            scipy.interpolate.interp1d.
+
+        overlap_timestamps: bool
+            If true, return only overlapping streams, i.e. all streams
+            are limited to periods where all streams have data. (default: True)
+            If false, depends on whether sync_timestamps is set. If set, it
+            expands all streams to include the earliest and latest timestamp of
+            any stream, if not set it simply return streams independently.
+            `
         on_chunk : Function that is called for each chunk of data as it is
            being retrieved from the file; the function is allowed to modify
            the data (for example, sub-sample it). The four input arguments
@@ -402,6 +425,17 @@ def load_xdf(
         stream["time_series"] = tmp.time_series
         stream["time_stamps"] = tmp.time_stamps
 
+    # sync sampling with the fastest timeseries by interpolation / shifting
+    if sync_timestamps:
+        if type(sync_timestamps) is not str:
+            sync_timestamps = "linear"
+            logger.warning('sync_timestamps defaults to "linear"')
+        streams = _sync_timestamps(streams, kind=sync_timestamps)
+
+    # limit streams to their overlapping periods
+    if overlap_timestamps:
+        streams = _limit_streams_to_overlap(streams)
+
     streams = [s for s in streams.values()]
     return streams, fileheader
 
@@ -501,7 +535,7 @@ def _xml2dict(t):
 
 def _scan_forward(f):
     """Scan forward through file object until after the next boundary chunk."""
-    blocklen = 2 ** 20
+    blocklen = 2**20
     signature = bytes(
         [
             0x43,
@@ -859,3 +893,194 @@ def _read_chunks(f):
 def _parse_streamheader(xml):
     """Parse stream header XML."""
     return {el.tag: el.text for el in xml if el.tag != "desc"}
+
+
+def _interpolate(
+    x: np.ndarray, y: np.ndarray, new_x: np.ndarray, kind="linear"
+) -> np.ndarray:
+    """Perform interpolation for _sync_timestamps
+
+    If scipy is not installed, the method falls back to numpy, and then only
+    supports linear interpolation.
+    """
+    try:
+        from scipy.interpolate import interp1d
+
+        f = interp1d(
+            x,
+            y,
+            kind=kind,
+            axis=0,
+            assume_sorted=True,  # speed up
+            bounds_error=False,
+        )
+        return f(new_x)
+    except ImportError as e:
+        if kind != "linear":
+            raise e
+        else:
+            return np.interp(new_x, xp=x, fp=y, left=np.NaN, right=np.NaN)
+
+
+def _sync_timestamps(streams, kind="linear"):
+    """Sync all streams to the fastest sampling rate by shifting or upsampling.
+
+    Depending on a streams channel-format, extrapolation is performed using
+    with NaNs (numerical formats) or with [''] (string format).
+
+    Interpolation is only performed for numeric values, and depending on the
+    kind argument which is inherited from scipy.interpolate.interp1d. Consider
+    that If the channel format is an integer type (i.e. 'int8', 'int16',
+    'int32', or 'int64'), integer output is enforced by rounding the values.
+    Additionally, consider that not all interpolation methods are convex, i.e.
+    for some kinds, you might receive values above or below the desired
+    integer type. There is no correction implemented for this, as it is assumed
+    this is a desired behavior if you give the appropriate argument.
+
+    For string formats, events are shifted towards the nearest feasible
+    timepoint. Any time-stamps without a marker get then assigned an empty
+    marker, i.e. [''].
+    """
+    # selecting the stream with the highest effective sampling rate
+    srate_key = "effective_srate"
+    srates = [stream["info"][srate_key] for stream in streams.values()]
+    max_fs = max(srates, default=0)
+
+    if max_fs == 0:  # either no valid stream or all streams are async
+        return streams
+    if srates.count(max_fs) > 1:
+        # highly unlikely, with floating point precision and sampling noise
+        # but anyways: better safe than sorry
+        logger.warning(
+            "I found at least two streams with identical effective "
+            "srate. I select one at random for syncing timestamps."
+        )
+
+    # selecting maximal time range of the whole recording
+    # streams with fs=0 might are not dejittered be default, and therefore
+    # indexing first and last might miss the earliest/latest
+    # we therefore take the min and max timestamp
+    stamps = [stream["time_stamps"] for stream in streams.values()]
+    ts_first = min((min(s) for s in stamps))
+    ts_last = max((max(s) for s in stamps))
+
+    # generate new timestamps
+    # based on extrapolation of the fastest timestamps towards the maximal
+    # time range of the whole recording
+    fs_step = 1.0 / max_fs
+    new_timestamps = stamps[srates.index(max_fs)]
+    num_steps = int((new_timestamps[0] - ts_first) / fs_step) + 1
+    front_stamps = np.linspace(ts_first, new_timestamps[0], num_steps)
+    num_steps = int((ts_last - new_timestamps[-1]) / fs_step) + 1
+    end_stamps = np.linspace(new_timestamps[-1], ts_last, num_steps)
+
+    new_timestamps = np.concatenate(
+        (front_stamps, new_timestamps[1:-1], end_stamps), axis=0
+    )
+
+    # interpolate or shift all streams to the new timestamps
+    for stream in streams.values():
+        channel_format = stream["info"]["channel_format"][0]
+
+        if (channel_format == "string") and (stream["info"][srate_key] == 0):
+            # you can't really interpolate strings; and streams with srate=0
+            # don't have a real sampling rate. One approach to sync them is to
+            # shift their events to the nearest timestamp of the new
+            # timestamps
+            shifted_x = []
+            for x in stream["time_stamps"]:
+                argmin = (abs(new_timestamps - x)).argmin()
+                shifted_x.append(new_timestamps[argmin])
+
+            shifted_y = []
+            for x in new_timestamps:
+                try:
+                    idx = shifted_x.index(x)
+                    y = stream["time_series"][idx]
+                    shifted_y.append([y])
+                except ValueError:
+                    shifted_y.append([""])
+
+            stream["time_series"] = np.asanyarray((shifted_y))
+            stream["time_stamps"] = new_timestamps
+
+        elif channel_format in [
+            "float32",
+            "double64",
+            "int8",
+            "int16",
+            "int32",
+            "int64",
+        ]:
+            # continuous interpolation is possible using interp1d
+            # discrete interpolation requires some finetuning
+            # bounds_error=False replaces everything outside of interpolation
+            # zone with NaNs
+            y = stream["time_series"]
+            x = stream["time_stamps"]
+
+            stream["time_series"] = _interpolate(x, y, new_timestamps, kind)
+            stream["time_stamps"] = new_timestamps
+
+            if channel_format in ["int8", "int16", "int32", "int64"]:
+                # i am stuck with float64s, as integers have no nans
+                # therefore i round to the nearest integer instead
+                stream["time_series"] = np.around(stream["time_series"], 0)
+        elif (channel_format == "string") and (stream["info"][srate_key] != 0):
+            warnings.warn(
+                "Can't interpolate a channel with channel format string and an effective sampling rate != 0"
+            )
+        else:
+            raise NotImplementedError(
+                "Don't know how to sync sampling for "
+                "channel_format="
+                "{}".format(channel_format)
+            )
+        stream["info"]["effective_srate"] = max_fs
+
+    return streams
+
+
+def _limit_streams_to_overlap(streams):
+    """takes streams, returns streams limited to time periods overlapping
+    between all streams
+
+    The overlapping periods start and end for each streams with the first and
+    last sample completely within the overlapping period.
+    If time_stamps have been synced, these are the same time-points for all
+    streams. Consider that in the case of unsynced time-stamps, the time-stamps
+    can not be exactly equal!
+    """
+    ts_first, ts_last = [], []
+    for stream in streams.values():
+        # skip streams with fs=0 or if they send strings, because they might
+        # just not yet have send anything on purpose (i.e. markers)
+        # while other data was already  being recorded.
+        if (
+            stream["info"]["effective_srate"] != 0
+            and stream["info"]["channel_format"][0] != "string"
+        ):
+            # extrapolation in _sync_timestamps is done with NaNs
+            not_extrapolated = np.where(~np.isnan(stream["time_series"]))[0]
+            ts_first.append(min(stream["time_stamps"][not_extrapolated]))
+            ts_last.append(max(stream["time_stamps"][not_extrapolated]))
+
+    ts_first = max(ts_first)
+    ts_last = min(ts_last)
+    for stream in streams.values():
+        # use np.around to prevent floating point hickups
+        around = np.around(stream["time_stamps"], 15)
+        a = np.where(around >= ts_first)[0]
+        b = np.where(around <= ts_last)[0]
+        select = np.intersect1d(a, b)
+        if type(stream["time_stamps"]) is list:
+            stream["time_stamps"] = [stream["time_stamps"][s] for s in select]
+        else:
+            stream["time_stamps"] = stream["time_stamps"][select]
+
+        if type(stream["time_series"]) is list:
+            stream["time_series"] = [stream["time_series"][s] for s in select]
+        else:
+            stream["time_series"] = stream["time_series"][select]
+
+    return streams

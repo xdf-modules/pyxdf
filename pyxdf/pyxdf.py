@@ -416,6 +416,24 @@ def load_xdf(
             else:
                 stream.effective_srate = 0.0
 
+    # sync sampling with the fastest timeseries by interpolation / shifting
+    for k in streams.keys():
+        stream = streams[k]
+        tmp = temp[k]
+        tmp.channel_format = stream["info"]["channel_format"][0]
+
+    if sync_timestamps:
+        if type(sync_timestamps) is not str:
+            sync_timestamps = "linear"
+            logger.warning('sync_timestamps defaults to "linear"')
+        temp = _sync_timestamps(
+            temp, kind=sync_timestamps, use_samplingrate=use_samplingrate
+        )
+
+    # limit streams to their overlapping periods
+    if overlap_timestamps:
+        temp = _limit_streams_to_overlap(temp)
+
     for k in streams.keys():
         stream = streams[k]
         tmp = temp[k]
@@ -430,20 +448,6 @@ def load_xdf(
         stream["info"]["effective_srate"] = tmp.effective_srate
         stream["time_series"] = tmp.time_series
         stream["time_stamps"] = tmp.time_stamps
-
-    # sync sampling with the fastest timeseries by interpolation / shifting
-    if sync_timestamps:
-        if type(sync_timestamps) is not str:
-            sync_timestamps = "linear"
-            logger.warning('sync_timestamps defaults to "linear"')
-        streams = _sync_timestamps(
-            streams, kind=sync_timestamps, use_samplingrate=use_samplingrate
-        )
-
-    # limit streams to their overlapping periods
-    if overlap_timestamps:
-        streams = _limit_streams_to_overlap(streams)
-
     streams = [s for s in streams.values()]
     return streams, fileheader
 
@@ -701,7 +705,8 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
             # 0th sample is a segment start and last sample is a segment stop
             seg_starts = np.hstack(([0], break_inds))
             seg_stops = np.hstack((break_inds - 1, nsamples - 1))  # inclusive
-
+            stream.seg_starts = seg_starts
+            stream.seg_stops = seg_stops
             # Process each segment separately
             for start_ix, stop_ix in zip(seg_starts, seg_stops):
                 # Calculate time stamps assuming constant intervals within each
@@ -950,8 +955,7 @@ def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
     marker, i.e. [''].
     """
     # selecting the stream with the highest effective sampling rate
-    srate_key = "effective_srate"
-    srates = [stream["info"][srate_key] for stream in streams.values()]
+    srates = [stream.effective_srate for stream in streams.values()]
     max_fs = max(srates, default=0)
     if max_fs == 0:  # either no valid stream or all streams are async
         return streams
@@ -967,7 +971,7 @@ def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
     # streams with fs=0 might are not dejittered be default, and therefore
     # indexing first and last might miss the earliest/latest
     # we therefore take the min and max timestamp
-    stamps = [stream["time_stamps"] for stream in streams.values()]
+    stamps = [stream.time_stamps for stream in streams.values()]
     ts_first = min((min(s) for s in stamps))  # earliest sample of all streams
     ts_last = max((max(s) for s in stamps))  # latest sample of all streams
 
@@ -999,15 +1003,15 @@ def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
 
     # interpolate or shift all streams to the new timestamps
     for stream in streams.values():
-        channel_format = stream["info"]["channel_format"][0]
-
-        if (channel_format == "string") and (stream["info"][srate_key] == 0):
+        if (stream.channel_format == "string") and (
+            stream.effective_srate == 0
+        ):
             # you can't really interpolate strings; and streams with srate=0
             # don't have a real sampling rate. One approach to sync them is to
             # shift their events to the nearest timestamp of the new
             # timestamps
             shifted_x = []
-            for x in stream["time_stamps"]:
+            for x in stream.time_stamps:
                 argmin = (abs(new_timestamps - x)).argmin()
                 shifted_x.append(new_timestamps[argmin])
 
@@ -1015,15 +1019,15 @@ def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
             for x in new_timestamps:
                 try:
                     idx = shifted_x.index(x)
-                    y = stream["time_series"][idx]
+                    y = stream.time_series[idx]
                     shifted_y.append([y])
                 except ValueError:
                     shifted_y.append([""])
 
-            stream["time_series"] = np.asanyarray((shifted_y))
-            stream["time_stamps"] = new_timestamps
+            stream.time_series = np.asanyarray((shifted_y))
+            stream.time_stamps = new_timestamps
 
-        elif channel_format in [
+        elif stream.channel_format in [
             "float32",
             "double64",
             "int8",
@@ -1035,17 +1039,19 @@ def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
             # discrete interpolation requires some finetuning
             # bounds_error=False replaces everything outside of interpolation
             # zone with NaNs
-            y = stream["time_series"]
-            x = stream["time_stamps"]
+            y = stream.time_series
+            x = stream.time_stamps
 
-            stream["time_series"] = _interpolate(x, y, new_timestamps, kind)
-            stream["time_stamps"] = new_timestamps
+            stream.time_series = _interpolate(x, y, new_timestamps, kind)
+            stream.time_stamps = new_timestamps
 
-            if channel_format in ["int8", "int16", "int32", "int64"]:
+            if stream.channel_format in ["int8", "int16", "int32", "int64"]:
                 # i am stuck with float64s, as integers have no nans
                 # therefore i round to the nearest integer instead
-                stream["time_series"] = np.around(stream["time_series"], 0)
-        elif (channel_format == "string") and (stream["info"][srate_key] != 0):
+                stream.time_series = np.around(stream.time_series, 0)
+        elif (stream.channel_format == "string") and (
+            stream.effective_srate != 0
+        ):
             warnings.warn(
                 "Can't interpolate a channel with channel format string and an effective sampling rate != 0"
             )
@@ -1053,9 +1059,9 @@ def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
             raise NotImplementedError(
                 "Don't know how to sync sampling for "
                 "channel_format="
-                "{}".format(channel_format)
+                "{}".format(stream.channel_format)
             )
-        stream["info"]["effective_srate"] = new_srate
+        stream.effective_srate = new_srate
 
     return streams
 
@@ -1076,30 +1082,30 @@ def _limit_streams_to_overlap(streams):
         # just not yet have send anything on purpose (i.e. markers)
         # while other data was already  being recorded.
         if (
-            stream["info"]["effective_srate"] != 0
-            and stream["info"]["channel_format"][0] != "string"
+            stream.effective_srate != 0
+            and stream.channel_format != "string"
         ):
             # extrapolation in _sync_timestamps is done with NaNs
-            not_extrapolated = np.where(~np.isnan(stream["time_series"]))[0]
-            ts_first.append(min(stream["time_stamps"][not_extrapolated]))
-            ts_last.append(max(stream["time_stamps"][not_extrapolated]))
+            not_extrapolated = np.where(~np.isnan(stream.time_series))[0]
+            ts_first.append(min(stream.time_stamps[not_extrapolated]))
+            ts_last.append(max(stream.time_stamps[not_extrapolated]))
 
     ts_first = max(ts_first)
     ts_last = min(ts_last)
     for stream in streams.values():
         # use np.around to prevent floating point hickups
-        around = np.around(stream["time_stamps"], 15)
+        around = np.around(stream.time_stamps, 15)
         a = np.where(around >= ts_first)[0]
         b = np.where(around <= ts_last)[0]
         select = np.intersect1d(a, b)
-        if type(stream["time_stamps"]) is list:
-            stream["time_stamps"] = [stream["time_stamps"][s] for s in select]
+        if type(stream.time_stamps) is list:
+            stream.time_stamps = [stream.time_stamps[s] for s in select]
         else:
-            stream["time_stamps"] = stream["time_stamps"][select]
+            stream.time_stamps = stream.time_stamps[select]
 
-        if type(stream["time_series"]) is list:
-            stream["time_series"] = [stream["time_series"][s] for s in select]
+        if type(stream.time_series) is list:
+            stream.time_series = [stream.time_series[s] for s in select]
         else:
-            stream["time_series"] = stream["time_series"][select]
+            stream.time_series = stream.time_series[select]
 
     return streams

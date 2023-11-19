@@ -1,5 +1,5 @@
 from pathlib import Path
-from pyxdf import load_xdf
+from pyxdf import load_xdf, align_streams
 import pytest
 import numpy as np
 
@@ -78,7 +78,11 @@ def test_load_file(file):
 
 
 def test_smoketest_sync(example_files):
-    for file in files:
+    for file in example_files:
         streams, header = load_xdf(
-            file, sync_timestamps="linear", overlap_timestamps=False
-        )
+            file)
+        if file.endswith("minimal.xdf"):
+            align_streams(streams) 
+
+            
+            

@@ -14,17 +14,16 @@ import struct
 import itertools
 import gzip
 from xml.etree.ElementTree import fromstring
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, Counter
 import logging
 from pathlib import Path
 import warnings
 import numpy as np
 
 
-__all__ = ["load_xdf"]
+__all__ = ["load_xdf", "align_streams"]
 
 logger = logging.getLogger(__name__)
-
 
 class StreamData:
     """Temporary per-stream data."""
@@ -82,9 +81,9 @@ def load_xdf(
     clock_reset_threshold_offset_stds=10,
     winsor_threshold=0.0001,
     verbose=None,
-    sync_timestamps=False,
+    align_timestamps=False,
     use_samplingrate="highest",
-    overlap_timestamps=False,
+    only_overlapping=False,
 ):
     """Import an XDF file.
 
@@ -125,32 +124,31 @@ def load_xdf(
         dejitter_timestamps : Whether to perform jitter removal for regularly
           sampled streams. (default: true)
 
-        sync_timestamps: {bool str}
+        align_timestamps: {bool, str}
             sync timestamps of all streams sample-wise with the stream of the
-            highest effective sampling rate (or as set in use_samplingrate). Using sync_timestamps with any
+            highest effective sampling rate (or as set in use_samplingrate). Using align_timestamps with any
             method other than linear has dependency on scipy, which is not a
             hard requirement of pyxdf. If scipy is not installed in your
             environment, the method supports linear interpolation with
             numpy.
 
-            False -> no syncing
-            True -> linear syncing
-            str:<'linear’, ‘nearest’, ‘zero’, ‘slinear’, ‘quadratic’, ‘cubic’,
-            ‘previous’, ‘next’> for method inherited from
-            scipy.interpolate.interp1d.
+            False -> do not align samples
+            True -> align samples using linear interpolation
+            str: align data using the method <'linear’, ‘nearest’, ‘zero’, ‘slinear’, ‘quadratic’, ‘cubic’, ‘previous’, ‘next’> as implemented in scipy.interpolate.interp1d.
 
-        use_samplingrate: {int str} = "highest"
-            resamples all channels to an effective sampling rate as given by this argument, using the method as defined by sync_timestamps. Will do nothing if sync_timestamps is False or the sampling rate is not larger than zero.
+        use_samplingrate: {int, str} = "highest"
+            resamples all channels to an effective sampling rate as given by this argument, using the method as defined by align_timestamps. Will do nothing if align_timestamps is False or the sampling rate is not larger than zero.
+            Plase note that setting a sampling rate smaller than the fastest sampling rate of all streams can result in aliasing.
             int>0: resample to this sampling rate.
             str:<'highest'> use the highest
 
-        overlap_timestamps: bool
+        only_overlapping: bool = False
             If true, return only overlapping streams, i.e. all streams
-            are limited to periods where all streams have data. (default: True)
-            If false, depends on whether sync_timestamps is set. If set, it
+            are limited to periods where all streams have data. (default: False)
+            If false, depends on whether align_timestamps is set. If set, it
             expands all streams to include the earliest and latest timestamp of
-            any stream, if not set it simply return streams independently.
-            `
+            any stream, if not set it simply return streams as they are.
+            
         on_chunk : Function that is called for each chunk of data as it is
            being retrieved from the file; the function is allowed to modify
            the data (for example, sub-sample it). The four input arguments
@@ -422,16 +420,16 @@ def load_xdf(
         tmp = temp[k]
         tmp.channel_format = stream["info"]["channel_format"][0]
 
-    if sync_timestamps:
-        if type(sync_timestamps) is not str:
-            sync_timestamps = "linear"
-            logger.warning('sync_timestamps defaults to "linear"')
-        temp = _sync_timestamps(
-            temp, kind=sync_timestamps, use_samplingrate=use_samplingrate
+    if align_timestamps:
+        if type(align_timestamps) is not str:
+            align_timestamps = "linear"
+            logger.warning('align_timestamps defaults to "linear"')
+        temp = _align_timestamps(
+            temp, kind=align_timestamps, use_samplingrate=use_samplingrate
         )
 
     # limit streams to their overlapping periods
-    if overlap_timestamps:
+    if only_overlapping:
         temp = _limit_streams_to_overlap(temp)
 
     for k in streams.keys():
@@ -449,7 +447,7 @@ def load_xdf(
         stream["time_series"] = tmp.time_series
         stream["time_stamps"] = tmp.time_stamps
     streams = [s for s in streams.values()]
-    return streams, fileheader
+    return list(streams), fileheader
 
 
 def open_xdf(file):
@@ -911,7 +909,7 @@ def _parse_streamheader(xml):
 def _interpolate(
     x: np.ndarray, y: np.ndarray, new_x: np.ndarray, kind="linear"
 ) -> np.ndarray:
-    """Perform interpolation for _sync_timestamps
+    """Perform interpolation for _align_timestamps
 
     If scipy is not installed, the method falls back to numpy, and then only
     supports linear interpolation.
@@ -935,7 +933,9 @@ def _interpolate(
             return np.interp(new_x, xp=x, fp=y, left=np.NaN, right=np.NaN)
 
 
-def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
+
+
+def _align_timestamps(streams, kind="linear", use_samplingrate="highest"):
     """Sync all streams to the fastest sampling rate by shifting or upsampling.
 
     Depending on a streams channel-format, extrapolation is performed using
@@ -974,7 +974,7 @@ def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
     stamps = [stream.time_stamps for stream in streams.values()]
     ts_first = min((min(s) for s in stamps))  # earliest sample of all streams
     ts_last = max((max(s) for s in stamps))  # latest sample of all streams
-
+    full_dur = ts_last-ts_first
     # generate new timestamps
     # based on extrapolation of the fastest timestamps towards the maximal
     # time range of the whole recording
@@ -987,28 +987,15 @@ def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
             f"Unknown parameter for use_samplingrate: {use_samplingrate}"
         )
     fs_step = 1.0 / new_srate
-    if new_srate == max_fs:
-        new_timestamps = stamps[
-            srates.index(max_fs)
-        ]  # pick fastest stream regardless of finally used srate
-        num_steps = int((new_timestamps[0] - ts_first) / fs_step) + 1
-        front_stamps = np.linspace(ts_first, new_timestamps[0], num_steps)
-        num_steps = int((ts_last - new_timestamps[-1]) / fs_step) + 1
-        end_stamps = np.linspace(new_timestamps[-1], ts_last, num_steps)
-        new_timestamps = np.concatenate(
-            (front_stamps, new_timestamps[1:-1], end_stamps), axis=0
-        )
-    else:
-        new_timestamps = np.arange(ts_first, ts_last, fs_step)
+    new_timestamps = np.linspace(ts_first, ts_last, 
+                                 num=int(full_dur*new_srate)+1, 
+                                 endpoint=True)
 
     # interpolate or shift all streams to the new timestamps
     for stream in streams.values():
-        if (stream.channel_format == "string") and (
-            stream.effective_srate == 0
-        ):
-            # you can't really interpolate strings; and streams with srate=0
-            # don't have a real sampling rate. One approach to sync them is to
-            # shift their events to the nearest timestamp of the new
+        if (stream.channel_format == "string"):
+            # you can't really interpolate strings. One approach to sync them 
+            # is to shift their events to the nearest timestamp of the new
             # timestamps
             shifted_x = []
             for x in stream.time_stamps:
@@ -1020,11 +1007,11 @@ def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
                 try:
                     idx = shifted_x.index(x)
                     y = stream.time_series[idx]
-                    shifted_y.append([y])
+                    shifted_y.append(y)
                 except ValueError:
-                    shifted_y.append([""])
-
-            stream.time_series = np.asanyarray((shifted_y))
+                    shifted_y.append("")
+                    
+            stream.time_series = shifted_y
             stream.time_stamps = new_timestamps
 
         elif stream.channel_format in [
@@ -1049,12 +1036,6 @@ def _sync_timestamps(streams, kind="linear", use_samplingrate="highest"):
                 # i am stuck with float64s, as integers have no nans
                 # therefore i round to the nearest integer instead
                 stream.time_series = np.around(stream.time_series, 0)
-        elif (stream.channel_format == "string") and (
-            stream.effective_srate != 0
-        ):
-            warnings.warn(
-                "Can't interpolate a channel with channel format string and an effective sampling rate != 0"
-            )
         else:
             raise NotImplementedError(
                 "Don't know how to sync sampling for "
@@ -1085,7 +1066,7 @@ def _limit_streams_to_overlap(streams):
             stream.effective_srate != 0
             and stream.channel_format != "string"
         ):
-            # extrapolation in _sync_timestamps is done with NaNs
+            # extrapolation in _align_timestamps is done with NaNs
             not_extrapolated = np.where(~np.isnan(stream.time_series))[0]
             ts_first.append(min(stream.time_stamps[not_extrapolated]))
             ts_last.append(max(stream.time_stamps[not_extrapolated]))
@@ -1109,3 +1090,104 @@ def _limit_streams_to_overlap(streams):
             stream.time_series = stream.time_series[select]
 
     return streams
+
+def _shift_align(old_timestamps, old_timeseries, new_timestamps):
+    old_timestamps = np.array(old_timestamps)
+    old_timeseries = np.array(old_timeseries)
+    new_timestamps = np.array(new_timestamps)
+    ts_last = old_timestamps[-1]
+    ts_first = old_timestamps[0]    
+    source = list()
+    target = list()    
+    new_timeseries = np.empty((
+                               new_timestamps.shape[0],  # new sample count
+                               old_timeseries.shape[1], # old channel count
+                               ), dtype=object)
+    new_timeseries.fill(np.nan)
+    too_old = list()
+    too_young = list()
+    for nix, nts in enumerate(new_timestamps):
+        closest = (np.abs(old_timestamps - nts)).argmin()
+        # remember the edge cases, 
+        if (nts>ts_last): 
+            too_young.append((nix, nts))
+        elif (nts < ts_first):
+            too_old.append((nix,nts))
+        else:
+            closest = (np.abs(old_timestamps - nts)).argmin()
+            source.append(closest)
+            target.append(nix)
+    # check the edge cases, 
+    for nix, nts in reversed(too_old):
+        closest = (np.abs(old_timestamps - nts)).argmin()
+        if (closest not in source):
+            source.append(closest)
+            target.append(nix)
+        break
+    for nix, nts in too_young:
+        closest = (np.abs(old_timestamps - nts)).argmin()
+        if (closest not in source):
+            source.append(closest)
+            target.append(nix)
+        break
+
+    if len(set(source)) != len(source): #non-unique mapping            
+        cnt = Counter(source)        
+        toomany = defaultdict(list)
+        for v,n in zip(source, target):
+            if cnt[v] != 1:
+                toomany[old_timestamps[source[v]]].append(new_timestamps[target[n]])
+        for k,v in toomany.items():
+            print("The old time_stamp ", k,
+                "is a closest neighbor of", len(v) ,"new time_stamps:", v)
+        raise RuntimeError("Can not align streams. Could not create an unique mapping")
+    for chan in range(old_timeseries.shape[1]):
+        new_timeseries[target, chan] = old_timeseries[source,chan]
+    return new_timeseries
+
+
+def align_streams(streams, # List[defaultdict]
+                  align_foo=dict(), # defaultdict[int, Callable] 
+                  time_stamps=None, # List[float]
+                  sampling_rate=None # float
+):
+    if sampling_rate is not None and time_stamps is not None:
+        raise ValueError("You can not specify time_stamps and sampling_rate at the same time")
+    
+    if sampling_rate is None:
+         # we pick the effective sampling rate from the  fastest stream
+        srates = [stream["info"]["effective_srate"] for stream in streams]
+        sampling_rate = max(srates, default=0)
+        if sampling_rate <= 0:  # either no valid stream or all streams are async
+            warnings.warn("Can not align streams: Fastest effective sampling rate was 0 or smaller.")
+            return streams
+        
+    if time_stamps is None:        
+        # we pick the oldest and youngest timestamp of all streams
+        stamps = [stream["time_stamps"] for stream in streams]        
+        ts_first = min((min(s) for s in stamps))      
+        ts_last = max((max(s) for s in stamps))  
+        full_dur = ts_last-ts_first        
+        n_samples = int(full_dur * sampling_rate)+1
+        # we create new regularized timestamps
+        time_stamps = np.linspace(ts_first, ts_last, n_samples)
+    
+    
+    channels = 0
+    for stream in streams:
+        print(stream)
+        channels += int(stream["info"]["channel_count"][0])
+    # https://stackoverflow.com/questions/1704823/create-numpy-matrix-filled-with-nans The timings show a preference for ndarray.fill(..) as the faster alternative.
+    aligned_timeseries = np.empty((len(time_stamps),
+                                   channels,), dtype=object)
+    aligned_timeseries.fill(np.nan)
+
+    where = 0    
+    to = 0
+    for stream in streams:
+        sid = stream["info"]["stream_id"]        
+        new_timeseries = align_foo.get(sid, _shift_align)(stream["time_stamps"], stream["time_series"], time_stamps)
+        where = to
+        to += int(stream["info"]["channel_count"][0])
+        aligned_timeseries[:, where:to] = new_timeseries
+    return aligned_timeseries

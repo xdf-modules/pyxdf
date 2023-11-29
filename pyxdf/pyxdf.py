@@ -1130,7 +1130,10 @@ def _shift_align(old_timestamps, old_timeseries, new_timestamps):
             source.append(closest)
             target.append(nix)
         break
-
+    
+    if len(set(source)) != len(old_timestamps):
+        missed = len(old_timestamps)-len(set(source))
+        raise RuntimeError(f"Too few new timestamps. {missed} of {len(old_timestamps)} old samples could not be assigned.")
     if len(set(source)) != len(source): #non-unique mapping            
         cnt = Counter(source)        
         toomany = defaultdict(list)

@@ -81,10 +81,7 @@ def load_xdf(
     clock_reset_threshold_offset_stds=10,
     winsor_threshold=0.0001,
     verbose=None,
-    align_timestamps=False,
-    use_samplingrate="highest",
-    only_overlapping=False,
-):
+    ):
     """Import an XDF file.
 
     This is an importer for multi-stream XDF (Extensible Data Format)
@@ -399,6 +396,10 @@ def load_xdf(
         )
 
     # perform jitter removal if requested
+    for stream in temp.values():
+        #initialize segment list in case jitter_removal was not selected
+        stream.segments = [(0, len(stream.time_series)-1)] #inclusive
+
     if dejitter_timestamps:
         logger.info("  performing jitter removal...")
         temp = _jitter_removal(
@@ -413,24 +414,8 @@ def load_xdf(
                 stream.effective_srate = len(stream.time_stamps) / duration
             else:
                 stream.effective_srate = 0.0
+        
 
-    # sync sampling with the fastest timeseries by interpolation / shifting
-    for k in streams.keys():
-        stream = streams[k]
-        tmp = temp[k]
-        tmp.channel_format = stream["info"]["channel_format"][0]
-
-    if align_timestamps:
-        if type(align_timestamps) is not str:
-            align_timestamps = "linear"
-            logger.warning('align_timestamps defaults to "linear"')
-        temp = _align_timestamps(
-            temp, kind=align_timestamps, use_samplingrate=use_samplingrate
-        )
-
-    # limit streams to their overlapping periods
-    if only_overlapping:
-        temp = _limit_streams_to_overlap(temp)
 
     for k in streams.keys():
         stream = streams[k]
@@ -444,6 +429,7 @@ def load_xdf(
             )
         stream["info"]["stream_id"] = k
         stream["info"]["effective_srate"] = tmp.effective_srate
+        stream["info"]["segments"] = tmp.segments
         stream["time_series"] = tmp.time_series
         stream["time_stamps"] = tmp.time_stamps
     streams = [s for s in streams.values()]
@@ -689,22 +675,25 @@ def _clock_sync(
 def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
     for stream_id, stream in streams.items():
         stream.effective_srate = 0  # will be recalculated if possible
-        nsamples = len(stream.time_stamps)
+        stream.segments = []
+        nsamples = len(stream.time_stamps)        
         if nsamples > 0 and stream.srate > 0:
             # Identify breaks in the time_stamps
             diffs = np.diff(stream.time_stamps)
-            b_breaks = diffs > np.max(
+            threshold = np.max(
                 (threshold_seconds, threshold_samples * stream.tdiff)
             )
+            b_breaks = diffs > threshold
             # find indices (+ 1 to compensate for lost sample in np.diff)
-            break_inds = np.where(b_breaks)[0] + 1
-
+            break_inds = np.where(b_breaks)[0] + 1            
             # Get indices delimiting segments without breaks
             # 0th sample is a segment start and last sample is a segment stop
             seg_starts = np.hstack(([0], break_inds))
             seg_stops = np.hstack((break_inds - 1, nsamples - 1))  # inclusive
-            stream.seg_starts = seg_starts
-            stream.seg_stops = seg_stops
+            for a,b in zip(seg_starts, seg_stops):
+                stream.segments.append((a,b))
+
+            stream.seg_stops = seg_stops.tolist()
             # Process each segment separately
             for start_ix, stop_ix in zip(seg_starts, seg_stops):
                 # Calculate time stamps assuming constant intervals within each
@@ -724,15 +713,15 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
                     stream.time_stamps[seg_stops] + stream.tdiff
                 ) - stream.time_stamps[seg_starts]
                 stream.effective_srate = np.sum(counts) / np.sum(durations)
-
+        else:
+            stream.segments = [0, nsamples-1]    
         srate, effective_srate = stream.srate, stream.effective_srate
         if srate != 0 and np.abs(srate - effective_srate) / srate > 0.1:
             msg = (
                 "Stream %d: Calculated effective sampling rate %.4f Hz is"
                 " different from specified rate %.4f Hz."
             )
-            logger.warning(msg, stream_id, effective_srate, srate)
-
+            logger.warning(msg, stream_id, effective_srate, srate)        
     return streams
 
 

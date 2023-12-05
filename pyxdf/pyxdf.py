@@ -73,7 +73,7 @@ def load_xdf(
     synchronize_clocks=True,
     handle_clock_resets=True,
     dejitter_timestamps=True,
-    jitter_break_threshold_seconds=1,
+    jitter_break_threshold_seconds=1.0,
     jitter_break_threshold_samples=500,
     clock_reset_threshold_seconds=5,
     clock_reset_threshold_stds=5,
@@ -1140,11 +1140,11 @@ def _shift_align(old_timestamps, old_timeseries, new_timestamps):
 
 def align_streams(streams, # List[defaultdict]
                   align_foo=dict(), # defaultdict[int, Callable] 
-                  time_stamps=None, # List[float]
+                  aligned_timestamps=None, # List[float]
                   sampling_rate=None # float
 ):
-    if sampling_rate is not None and time_stamps is not None:
-        raise ValueError("You can not specify time_stamps and sampling_rate at the same time")
+    if sampling_rate is not None and aligned_timestamps is not None:
+        raise ValueError("You can not specify aligned_timestamps and sampling_rate at the same time")
     
     if sampling_rate is None:
          # we pick the effective sampling rate from the  fastest stream
@@ -1154,32 +1154,49 @@ def align_streams(streams, # List[defaultdict]
             warnings.warn("Can not align streams: Fastest effective sampling rate was 0 or smaller.")
             return streams
         
-    if time_stamps is None:        
+    
+    if aligned_timestamps is None:        
         # we pick the oldest and youngest timestamp of all streams
         stamps = [stream["time_stamps"] for stream in streams]        
         ts_first = min((min(s) for s in stamps))      
         ts_last = max((max(s) for s in stamps))  
-        full_dur = ts_last-ts_first        
-        n_samples = int(full_dur * sampling_rate)+1
+        full_dur = ts_last-ts_first
+        n_samples = int(np.round((full_dur * sampling_rate),0))+1
         # we create new regularized timestamps
-        time_stamps = np.linspace(ts_first, ts_last, n_samples)
-    
-    
+        aligned_timestamps = np.linspace(ts_first, ts_last, n_samples)       
+        
     channels = 0
     for stream in streams:
-        print(stream)
+        # print(stream)
         channels += int(stream["info"]["channel_count"][0])
     # https://stackoverflow.com/questions/1704823/create-numpy-matrix-filled-with-nans The timings show a preference for ndarray.fill(..) as the faster alternative.
-    aligned_timeseries = np.empty((len(time_stamps),
+    aligned_timeseries = np.empty((len(aligned_timestamps),
                                    channels,), dtype=object)
     aligned_timeseries.fill(np.nan)
 
-    where = 0    
-    to = 0
+    chan_start = 0    
+    chan_end = 0
     for stream in streams:
-        sid = stream["info"]["stream_id"]        
-        new_timeseries = align_foo.get(sid, _shift_align)(stream["time_stamps"], stream["time_series"], time_stamps)
-        where = to
-        to += int(stream["info"]["channel_count"][0])
-        aligned_timeseries[:, where:to] = new_timeseries
-    return aligned_timeseries
+        sid = stream["info"]["stream_id"]
+        align = align_foo.get(sid, _shift_align) 
+        chan_cnt = int(stream["info"]["channel_count"][0])
+        new_timeseries = np.empty((len(aligned_timestamps), chan_cnt), dtype=object)
+        new_timeseries.fill(np.nan)
+        for seg_start, seg_stop in stream["info"]["segments"]:            
+            _new_timeseries = align(
+                stream["time_stamps"][seg_start:seg_stop+1], 
+                stream["time_series"][seg_start:seg_stop+1], 
+                aligned_timestamps)
+            # pick indices of the NEW timestamps closest to when segments start and stop
+            a = stream["time_stamps"][seg_start]
+            b = stream["time_stamps"][seg_stop]
+            aix = np.argmin(np.abs(aligned_timestamps-a))
+            bix = np.argmin(np.abs(aligned_timestamps-b))            
+            # and store only this aligned segment, leaving the rest as nans (or aligned as other segments)
+            new_timeseries[aix:bix+1] = _new_timeseries[aix:bix+1]
+
+        # store the new timeseries at the respective channel indices in the 2D array
+        chan_start = chan_end
+        chan_end += chan_cnt
+        aligned_timeseries[:, chan_start:chan_end] = new_timeseries
+    return aligned_timeseries, aligned_timestamps

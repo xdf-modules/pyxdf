@@ -77,12 +77,27 @@ def test_load_file(file):
         np.testing.assert_array_almost_equal(streams[1]["time_stamps"], t)
 
 
-def test_smoketest_sync(example_files):
+def test_smoketest_sync_unsegmented(example_files):
+    for file in example_files:
+        streams, header = load_xdf(file)
+        if file.endswith("minimal.xdf"):
+            a_series, a_stamps = align_streams(streams) 
+            print("unsegmented")
+            for d, s in zip(a_series, a_stamps):
+                print(f"{s:5.3f} : {d}")
+
+def test_smoketest_sync_with_gaps(example_files):            
     for file in example_files:
         streams, header = load_xdf(
-            file)
+            file, 
+            jitter_break_threshold_seconds=0.001, jitter_break_threshold_samples=1
+            )
         if file.endswith("minimal.xdf"):
-            align_streams(streams) 
+            a_series, a_stamps = align_streams(streams) 
+            print("segmented")
+            #TODO swallows some samples
+            for d, s in zip(a_series, a_stamps):
+                print(f"{s:5.3f} : {d}")
 
             
             

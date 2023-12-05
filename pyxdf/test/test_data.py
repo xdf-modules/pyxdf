@@ -90,8 +90,14 @@ def test_smoketest_sync_forced(example_files):
     for file in example_files:
         streams, header = load_xdf(file)
         if file.endswith("minimal.xdf"):
-            a_series, a_stamps = align_streams(streams, aligned_timestamps=np.arange(5.001, 5.92, 0.1) )
-            print("forced")
+            print("forced_stamps")
+            a_series, a_stamps = align_streams(streams, aligned_timestamps=np.arange(5.001, 5.92, 0.1) )            
+            for d, s in zip(a_series, a_stamps):
+                print(f"{s:5.3f} : {d}")
+            
+            print("forced_rate")            
+            a_series, a_stamps = align_streams(streams, 
+                                               sampling_rate=10.15)            
             for d, s in zip(a_series, a_stamps):
                 print(f"{s:5.3f} : {d}")
 

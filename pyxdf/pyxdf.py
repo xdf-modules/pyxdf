@@ -1161,9 +1161,14 @@ def align_streams(streams, # List[defaultdict]
         ts_first = min((min(s) for s in stamps))      
         ts_last = max((max(s) for s in stamps))  
         full_dur = ts_last-ts_first
-        n_samples = int(np.round((full_dur * sampling_rate),0))+1
+        step = 1/sampling_rate
         # we create new regularized timestamps
-        aligned_timestamps = np.linspace(ts_first, ts_last, n_samples)       
+        aligned_timestamps = np.arange(ts_first, ts_last+step/2, step)
+        # using np.linspace only differs in step if n_samples is different (as n_samples must be an integer number (see implementation below). 
+        # therefore we stick with np.arange (in spite of possible floating point error accumulation, but to make sure that ts_last is included, we add a half-step. This therefore comes at the cost of a overshoot, but i consider this acceptable considering this stamp would only be from one stream, and not part of all other and therefore is kind of arbitray anyways.
+        # linspace implementation:
+        # n_samples = int(np.round((full_dur * sampling_rate),0))+1
+        # aligned_timestamps = np.linspace(ts_first, ts_last, n_samples)       
         
     channels = 0
     for stream in streams:

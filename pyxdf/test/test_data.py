@@ -85,6 +85,15 @@ def test_smoketest_sync_unsegmented(example_files):
             print("unsegmented")
             for d, s in zip(a_series, a_stamps):
                 print(f"{s:5.3f} : {d}")
+                
+def test_smoketest_sync_forced(example_files):
+    for file in example_files:
+        streams, header = load_xdf(file)
+        if file.endswith("minimal.xdf"):
+            a_series, a_stamps = align_streams(streams, aligned_timestamps=np.arange(5.001, 5.92, 0.1) )
+            print("forced")
+            for d, s in zip(a_series, a_stamps):
+                print(f"{s:5.3f} : {d}")
 
 def test_smoketest_sync_with_gaps(example_files):            
     for file in example_files:
@@ -94,8 +103,7 @@ def test_smoketest_sync_with_gaps(example_files):
             )
         if file.endswith("minimal.xdf"):
             a_series, a_stamps = align_streams(streams) 
-            print("segmented")
-            #TODO swallows some samples
+            print("segmented")            
             for d, s in zip(a_series, a_stamps):
                 print(f"{s:5.3f} : {d}")
 

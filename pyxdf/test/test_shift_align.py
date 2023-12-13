@@ -1,4 +1,4 @@
-from pyxdf.pyxdf import _shift_align
+from pyxdf.align import _shift_align
 import numpy as np
 import pytest
 old_timestamps = np.linspace(1.0, 1.5, 51)

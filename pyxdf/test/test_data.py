@@ -104,7 +104,7 @@ def test_smoketest_sync_forced(example_files):
             for d, s in zip(a_series, a_stamps):
                 print(f"{s:5.3f} : {d}")
 
-            from pyxdf.pyxdf import _interpolate
+            from pyxdf.align import _interpolate
             print("forced cubic")
             a_series, a_stamps = align_streams(streams, align_foo={0:lambda x,y,xh: _interpolate(x,y,xh, "cubic")})
             for d, s in zip(a_series, a_stamps):

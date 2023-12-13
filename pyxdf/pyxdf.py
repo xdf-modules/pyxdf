@@ -17,14 +17,11 @@ from xml.etree.ElementTree import fromstring
 from collections import OrderedDict, defaultdict
 import logging
 from pathlib import Path
-
 import numpy as np
-
-
-__all__ = ["load_xdf"]
+from pyxdf.align import align_streams
+__all__ = ["load_xdf", "align_streams"]
 
 logger = logging.getLogger(__name__)
-
 
 class StreamData:
     """Temporary per-stream data."""
@@ -74,15 +71,15 @@ def load_xdf(
     synchronize_clocks=True,
     handle_clock_resets=True,
     dejitter_timestamps=True,
-    jitter_break_threshold_seconds=1,
+    jitter_break_threshold_seconds=1.0,
     jitter_break_threshold_samples=500,
     clock_reset_threshold_seconds=5,
     clock_reset_threshold_stds=5,
     clock_reset_threshold_offset_seconds=1,
     clock_reset_threshold_offset_stds=10,
     winsor_threshold=0.0001,
-    verbose=None
-):
+    verbose=None,
+    ):
     """Import an XDF file.
 
     This is an importer for multi-stream XDF (Extensible Data Format)
@@ -120,8 +117,8 @@ def load_xdf(
           ClockOffset chunks. (default: true)
 
         dejitter_timestamps : Whether to perform jitter removal for regularly
-          sampled streams. (default: true)
-
+          sampled streams. (default: true)         
+            
         on_chunk : Function that is called for each chunk of data as it is
            being retrieved from the file; the function is allowed to modify
            the data (for example, sub-sample it). The four input arguments
@@ -372,6 +369,10 @@ def load_xdf(
         )
 
     # perform jitter removal if requested
+    for stream in temp.values():
+        #initialize segment list in case jitter_removal was not selected
+        stream.segments = [(0, len(stream.time_series)-1)] #inclusive
+
     if dejitter_timestamps:
         logger.info("  performing jitter removal...")
         temp = _jitter_removal(
@@ -386,6 +387,8 @@ def load_xdf(
                 stream.effective_srate = len(stream.time_stamps) / duration
             else:
                 stream.effective_srate = 0.0
+        
+
 
     for k in streams.keys():
         stream = streams[k]
@@ -399,11 +402,11 @@ def load_xdf(
             )
         stream["info"]["stream_id"] = k
         stream["info"]["effective_srate"] = tmp.effective_srate
+        stream["info"]["segments"] = tmp.segments
         stream["time_series"] = tmp.time_series
         stream["time_stamps"] = tmp.time_stamps
-
     streams = [s for s in streams.values()]
-    return streams, fileheader
+    return list(streams), fileheader
 
 
 def open_xdf(file):
@@ -501,7 +504,7 @@ def _xml2dict(t):
 
 def _scan_forward(f):
     """Scan forward through file object until after the next boundary chunk."""
-    blocklen = 2 ** 20
+    blocklen = 2**20
     signature = bytes(
         [
             0x43,
@@ -645,21 +648,25 @@ def _clock_sync(
 def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
     for stream_id, stream in streams.items():
         stream.effective_srate = 0  # will be recalculated if possible
-        nsamples = len(stream.time_stamps)
+        stream.segments = []
+        nsamples = len(stream.time_stamps)        
         if nsamples > 0 and stream.srate > 0:
             # Identify breaks in the time_stamps
             diffs = np.diff(stream.time_stamps)
-            b_breaks = diffs > np.max(
+            threshold = np.max(
                 (threshold_seconds, threshold_samples * stream.tdiff)
             )
+            b_breaks = diffs > threshold
             # find indices (+ 1 to compensate for lost sample in np.diff)
-            break_inds = np.where(b_breaks)[0] + 1
-
+            break_inds = np.where(b_breaks)[0] + 1            
             # Get indices delimiting segments without breaks
             # 0th sample is a segment start and last sample is a segment stop
             seg_starts = np.hstack(([0], break_inds))
             seg_stops = np.hstack((break_inds - 1, nsamples - 1))  # inclusive
+            for a,b in zip(seg_starts, seg_stops):
+                stream.segments.append((a,b))
 
+            stream.seg_stops = seg_stops.tolist()
             # Process each segment separately
             for start_ix, stop_ix in zip(seg_starts, seg_stops):
                 # Calculate time stamps assuming constant intervals within each
@@ -679,15 +686,15 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
                     stream.time_stamps[seg_stops] + stream.tdiff
                 ) - stream.time_stamps[seg_starts]
                 stream.effective_srate = np.sum(counts) / np.sum(durations)
-
+        else:
+            stream.segments = [0, nsamples-1]    
         srate, effective_srate = stream.srate, stream.effective_srate
         if srate != 0 and np.abs(srate - effective_srate) / srate > 0.1:
             msg = (
                 "Stream %d: Calculated effective sampling rate %.4f Hz is"
                 " different from specified rate %.4f Hz."
             )
-            logger.warning(msg, stream_id, effective_srate, srate)
-
+            logger.warning(msg, stream_id, effective_srate, srate)        
     return streams
 
 
@@ -859,3 +866,4 @@ def _read_chunks(f):
 def _parse_streamheader(xml):
     """Parse stream header XML."""
     return {el.tag: el.text for el in xml if el.tag != "desc"}
+

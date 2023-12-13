@@ -1,5 +1,5 @@
 from pathlib import Path
-from pyxdf import load_xdf
+from pyxdf import load_xdf, align_streams
 import pytest
 import numpy as np
 
@@ -29,16 +29,21 @@ def test_load_file(file):
         assert streams[0]["info"]["channel_format"][0] == "int16"
         assert streams[0]["info"]["stream_id"] == 0
 
-        s = np.array([[192, 255, 238],
-                      [12, 22, 32],
-                      [13, 23, 33],
-                      [14, 24, 34],
-                      [15, 25, 35],
-                      [12, 22, 32],
-                      [13, 23, 33],
-                      [14, 24, 34],
-                      [15, 25, 35]], dtype=np.int16)
-        t = np.array([5., 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8])
+        s = np.array(
+            [
+                [192, 255, 238],
+                [12, 22, 32],
+                [13, 23, 33],
+                [14, 24, 34],
+                [15, 25, 35],
+                [12, 22, 32],
+                [13, 23, 33],
+                [14, 24, 34],
+                [15, 25, 35],
+            ],
+            dtype=np.int16,
+        )
+        t = np.array([5.0, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8])
         np.testing.assert_array_equal(streams[0]["time_series"], s)
         np.testing.assert_array_almost_equal(streams[0]["time_stamps"], t)
 
@@ -49,20 +54,73 @@ def test_load_file(file):
         assert streams[1]["info"]["channel_format"][0] == "string"
         assert streams[1]["info"]["stream_id"] == 0x02C0FFEE
 
-        s = [['<?xml version="1.0"?><info><writer>LabRecorder xdfwriter'
-              '</writer><first_timestamp>5.1</first_timestamp><last_timestamp>'
-              '5.9</last_timestamp><sample_count>9</sample_count>'
-              '<clock_offsets><offset><time>50979.76</time><value>-.01</value>'
-              '</offset><offset><time>50979.86</time><value>-.02</value>'
-              '</offset></clock_offsets></info>'],
-             ['Hello'],
-             ['World'],
-             ['from'],
-             ['LSL'],
-             ['Hello'],
-             ['World'],
-             ['from'],
-             ['LSL']]
+        s = [
+            [
+                '<?xml version="1.0"?><info><writer>LabRecorder xdfwriter'
+                "</writer><first_timestamp>5.1</first_timestamp><last_timestamp>"
+                "5.9</last_timestamp><sample_count>9</sample_count>"
+                "<clock_offsets><offset><time>50979.76</time><value>-.01</value>"
+                "</offset><offset><time>50979.86</time><value>-.02</value>"
+                "</offset></clock_offsets></info>"
+            ],
+            ["Hello"],
+            ["World"],
+            ["from"],
+            ["LSL"],
+            ["Hello"],
+            ["World"],
+            ["from"],
+            ["LSL"],
+        ]
         t = np.array([5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9])
         assert streams[1]["time_series"] == s
         np.testing.assert_array_almost_equal(streams[1]["time_stamps"], t)
+
+
+def test_smoketest_sync_unsegmented(example_files):
+    for file in example_files:
+        streams, header = load_xdf(file)
+        if file.endswith("minimal.xdf"):
+            print("unsegmented")
+            a_series, a_stamps = align_streams(streams)             
+            for d, s in zip(a_series, a_stamps):
+                print(f"{s:5.3f} : {d}")
+    
+            
+    
+                
+def test_smoketest_sync_forced(example_files):
+    for file in example_files:
+        streams, header = load_xdf(file)
+        if file.endswith("minimal.xdf"):
+            print("forced_stamps")
+            a_series, a_stamps = align_streams(streams, aligned_timestamps=np.arange(5.001, 5.92, 0.1) )            
+            for d, s in zip(a_series, a_stamps):
+                print(f"{s:5.3f} : {d}")
+            
+            print("forced_rate")            
+            a_series, a_stamps = align_streams(streams, 
+                                               sampling_rate=10.15)            
+            for d, s in zip(a_series, a_stamps):
+                print(f"{s:5.3f} : {d}")
+
+            from pyxdf.align import _interpolate
+            print("forced cubic")
+            a_series, a_stamps = align_streams(streams, align_foo={0:lambda x,y,xh: _interpolate(x,y,xh, "cubic")})
+            for d, s in zip(a_series, a_stamps):
+                print(f"{s:5.3f} : {d}")
+
+def test_smoketest_sync_with_gaps(example_files):            
+    for file in example_files:
+        streams, header = load_xdf(
+            file, 
+            jitter_break_threshold_seconds=0.001, jitter_break_threshold_samples=1
+            )
+        if file.endswith("minimal.xdf"):
+            a_series, a_stamps = align_streams(streams) 
+            print("segmented")            
+            for d, s in zip(a_series, a_stamps):
+                print(f"{s:5.3f} : {d}")
+
+            
+            

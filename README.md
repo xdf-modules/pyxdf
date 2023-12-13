@@ -40,6 +40,8 @@ plt.show()
 
 * `print_metadata` will enable a DEBUG logger to log read messages, then it will print basic metadata about each found stream.
     * `python -m pyxdf.examples.print_metadata -f=/path/to/my.xdf`
+* `playback_lsl` will open an XDF file then replay its data in an infinite loop, but using current timestamps. This is useful for prototyping online processing.
+    * `python -m pyxdf.examples.playback_lsl /path/to/my.xdf` 
 
 ## Installation
 

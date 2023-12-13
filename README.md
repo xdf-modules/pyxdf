@@ -34,6 +34,13 @@ for stream in data:
 plt.show()
 ```
 
+## CLI Examples
+
+`pyxdf` has an `examples` module. These can be run from the commandline for basic functionality.
+
+* `print_metadata` will enable a DEBUG logger to log read messages, then it will print basic metadata about each found stream.
+    * `python -m pyxdf.examples.print_metadata -f=/path/to/my.xdf`
+
 ## Installation
 
 The latest stable version can be installed with `pip install pyxdf`.

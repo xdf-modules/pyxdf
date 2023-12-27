@@ -1,14 +1,15 @@
 import argparse
 import time
-from typing import List
+import sys
+from typing import List, Optional
 from dataclasses import dataclass
 
 import numpy as np
+import pylsl
 import pyxdf
 
 
 def _create_info_from_xdf_stream_header(header):
-    import pylsl
     new_info = pylsl.StreamInfo(
         name=header["name"][0],
         type=header["type"][0],
@@ -41,18 +42,77 @@ def _create_info_from_xdf_stream_header(header):
     return new_info
 
 
-def main(fname: str):
-    import pylsl
-    streams, header = pyxdf.load_xdf(fname)
+@dataclass
+class Streamer:
+    stream_ix: int
+    name: str
+    tvec: np.ndarray
+    info: pylsl.StreamInfo
+    outlet: pylsl.StreamOutlet
+    srate: float
 
-    @dataclass
-    class Streamer:
-        stream_ix: int
-        name: str
-        tvec: np.ndarray
-        info: pylsl.StreamInfo
-        outlet: pylsl.StreamOutlet
-        srate: float
+
+class LSLPlaybackClock:
+    def __init__(self, rate: float = 1.0, loop_time: float = 0.0, max_sample_rate: Optional[float] = None):
+        if rate != 1.0:
+            print("WARNING!! rate != 1.0; It is impossible to synchronize playback streams "
+                  "with real time streams.")
+        self.rate: float = rate  # Maximum rate is loop_time / avg_update_interval, whatever that might be.
+        self._boundary = loop_time
+        self._max_srate = max_sample_rate
+        decr = (1 / self._max_srate) if self._max_srate else 2 * sys.float_info.epsilon
+        self._wall_start: float = pylsl.local_clock() - decr / 2
+        self._file_read_s: float = 0  # File read header in seconds
+        self._prev_file_read_s: float = 0  # File read header in seconds for previous iteration
+        self._n_loop: int = 0
+
+    def set_rate(self, rate: float) -> None:
+        self.rate = rate
+        decr = (1 / self._max_srate) if self._max_srate else 2 * sys.float_info.epsilon
+        self._wall_start = pylsl.local_clock() - decr / 2 - self._file_read_s / self.rate
+        self._n_loop = 0
+        # Note: We do not update file_read_s and prev_file_read_s.
+        #  Changing the playback rate does not change where we are in the file.
+
+    def update(self):
+        self._prev_file_read_s = self._file_read_s
+        wall_elapsed = pylsl.local_clock() - self._wall_start
+        _file_read_s = self.rate * wall_elapsed
+        if self._boundary and self._prev_file_read_s == self._boundary:
+            # Previous iteration ended at the file boundary; wrap around and reset.
+            self._prev_file_read_s = 0.0
+            self._n_loop += 1
+        overrun = self._n_loop * self._boundary
+        self._file_read_s = _file_read_s - overrun
+        if self._boundary and self._file_read_s >= self._boundary:
+            # Previous was below boundary, now above boundary.
+            # Truncate _file_read_s to align exactly on the boundary;
+            # we will loop on the next iteration.
+            self._file_read_s = self._boundary
+
+    @property
+    def step_range(self) -> tuple[float, float]:
+        return self._prev_file_read_s, self._file_read_s
+
+    @property
+    def t0(self) -> float:
+        return self._wall_start + self._n_loop * self._boundary
+
+    def sleep(self, duration: Optional[float] = None) -> None:
+        if duration is None:
+            if self._max_srate <= 0:
+                duration = 0.005
+            else:
+                # Check to see if the current time is not already beyond the expected time of the next iteration.
+                step_time = 1 / self._max_srate
+                now_read_s = self.rate * (pylsl.local_clock() - self._wall_start)
+                next_read_s = self._file_read_s + step_time
+                duration = max(next_read_s - now_read_s, 0)
+        time.sleep(duration / self.rate)
+
+
+def main(fname: str, playback_speed: float = 1.0, loop: bool = True):
+    streams, header = pyxdf.load_xdf(fname)
 
     # First iterate over all streams to calculate some globals.
     xdf_t0 = np.inf
@@ -68,6 +128,7 @@ def main(fname: str):
                 max_rate = max(max_rate, srate)
                 wrap_dur = max(wrap_dur, tvec[-1] - tvec[0] + 1 / srate)
 
+    # Create list of Streamer objects
     streamers: List[Streamer] = []
     for strm_ix, strm in enumerate(streams):
         tvec = strm["time_stamps"]
@@ -77,51 +138,30 @@ def main(fname: str):
             new_outlet: pylsl.StreamOutlet = pylsl.StreamOutlet(new_info)
             streamers.append(Streamer(strm_ix, new_info.name(), tvec - xdf_t0, new_info, new_outlet, srate))
 
-    # Prepare variables to keep track of progress
-    start_time = pylsl.local_clock()
-    last_time = start_time
+    # Create timer to manage playback.
+    timer = LSLPlaybackClock(rate=playback_speed, loop_time=wrap_dur if loop else None, max_sample_rate=max_rate)
+
     try:
         while True:
-            b_wrap = False
-            t_now = pylsl.local_clock()
-
-            if (t_now - start_time) > wrap_dur:
-                # We have passed the file limit. Trim this iteration until the end of file only.
-                t_now = start_time + wrap_dur
-                b_wrap = True
-
-            # Get the slice of data (ref t=0) since the last time.
-            dat_win_start = last_time - start_time
-            dat_win_stop = t_now - start_time
-
+            timer.update()
+            t_start, t_stop = timer.step_range
             for streamer in streamers:
                 b_dat = np.logical_and(
-                    streamer.tvec >= dat_win_start,
-                    streamer.tvec < dat_win_stop
+                    streamer.tvec >= t_start,
+                    streamer.tvec < t_stop
                 )
                 if np.any(b_dat):
                     if streamer.srate > 0:
                         streamer.outlet.push_chunk(streams[streamer.stream_ix]["time_series"][b_dat],
-                                                   timestamp=start_time + streamer.tvec[b_dat][-1])
+                                                   timestamp=timer.t0 + streamer.tvec[b_dat][-1])
                     else:
                         # Irregular rate, like events and markers
                         for dat_idx in np.where(b_dat)[0]:
                             sample = streams[streamer.stream_ix]["time_series"][dat_idx]
                             streamer.outlet.push_sample(sample,
-                                                        timestamp=start_time + streamer.tvec[dat_idx])
+                                                        timestamp=timer.t0 + streamer.tvec[dat_idx])
                             # print(f"Pushed sample: {sample}")
-
-            last_time = t_now
-            if b_wrap:
-                start_time = t_now
-
-            if max_rate > 0:
-                if (pylsl.local_clock() - last_time) < (1 / max_rate):
-                    # Sleep until we have at least 1 more sample of the fastest stream.
-                    time.sleep(1 / max_rate)
-            else:
-                # All our streams are irregular. Sleep a constant 5 msec.
-                time.sleep(0.005)
+            timer.sleep()
 
     except KeyboardInterrupt:
         print("TODO: Shutdown outlets")
@@ -134,5 +174,7 @@ if __name__ == "__main__":
         type=str,
         help="Path to the XDF file"
     )
+    parser.add_argument("--playback_speed", type=float, default=1.0, help="Playback speed multiplier.")
+    parser.add_argument("--loop", action="store_false")
     args = parser.parse_args()
-    main(args.filename)
+    main(args.filename, playback_speed=args.playback_speed, loop=args.loop)

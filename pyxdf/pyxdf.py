@@ -468,7 +468,9 @@ def _read_chunk3(f, s):
             f.readinto(raw)
             # no fromfile(), see
             # https://github.com/numpy/numpy/issues/13319
-            values[k, :] = np.frombuffer(raw, dtype=s.dtype, count=s.nchns)
+            values[k, :] = np.frombuffer(
+                raw, dtype=s.dtype.newbyteorder("<"), count=s.nchns
+            )
     return nsamples, stamps, values
 
 

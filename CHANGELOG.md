@@ -1,3 +1,7 @@
+## [1.16.5] - 2024-01-12
+### Added
+- Added compatibility with Python 3.12 ([#96](https://github.com/xdf-modules/xdf-Python/pull/96) by [Clemens Brunner](https://github.com/cbrnr))
+
 ## [1.16.4] - 2023-01-09
 ### Fixed
 - Fix invalid `np.object` type ([#87](https://github.com/xdf-modules/xdf-Python/pull/87) by [Clemens Brunner](https://github.com/cbrnr))

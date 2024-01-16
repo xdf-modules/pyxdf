@@ -66,13 +66,19 @@ class LSLPlaybackClock:
         self._prev_file_read_s: float = 0  # File read header in seconds for previous iteration
         self._n_loop: int = 0
 
-    def set_rate(self, rate: float) -> None:
-        self.rate = rate
+    def reset(self, reset_file_position: bool = False) -> None:
         decr = (1 / self._max_srate) if self._max_srate else 2 * sys.float_info.epsilon
         self._wall_start = pylsl.local_clock() - decr / 2 - self._file_read_s / self.rate
         self._n_loop = 0
+        if reset_file_position:
+            self._file_read_s = 0
+            self._prev_file_read_s = 0
+
+    def set_rate(self, rate: float) -> None:
+        self.rate = rate
         # Note: We do not update file_read_s and prev_file_read_s.
         #  Changing the playback rate does not change where we are in the file.
+        self.reset(reset_file_position=False)
 
     def update(self):
         self._prev_file_read_s = self._file_read_s
@@ -111,7 +117,7 @@ class LSLPlaybackClock:
         time.sleep(duration / self.rate)
 
 
-def main(fname: str, playback_speed: float = 1.0, loop: bool = True):
+def main(fname: str, playback_speed: float = 1.0, loop: bool = True, wait_for_consumer: bool = False):
     streams, header = pyxdf.load_xdf(fname)
 
     # First iterate over all streams to calculate some globals.
@@ -140,9 +146,19 @@ def main(fname: str, playback_speed: float = 1.0, loop: bool = True):
 
     # Create timer to manage playback.
     timer = LSLPlaybackClock(rate=playback_speed, loop_time=wrap_dur if loop else None, max_sample_rate=max_rate)
-
+    b_push = not wait_for_consumer  # A flag to indicate we can push samples.
     try:
         while True:
+            if not b_push:
+                # We are looking for consumers.
+                time.sleep(0.01)
+                have_consumers = [streamer.outlet.have_consumers() for streamer in streamers]
+                # b_push = any(have_consumers)
+                b_push = all(have_consumers)
+                if b_push:
+                    timer.reset()
+                else:
+                    continue
             timer.update()
             t_start, t_stop = timer.step_range
             for streamer in streamers:
@@ -176,5 +192,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--playback_speed", type=float, default=1.0, help="Playback speed multiplier.")
     parser.add_argument("--loop", action="store_false")
+    parser.add_argument("--wait_for_consumer", action="store_true")
     args = parser.parse_args()
-    main(args.filename, playback_speed=args.playback_speed, loop=args.loop)
+    main(args.filename, playback_speed=args.playback_speed, loop=args.loop, wait_for_consumer=args.wait_for_consumer)

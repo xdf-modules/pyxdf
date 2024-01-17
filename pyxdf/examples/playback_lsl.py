@@ -146,6 +146,7 @@ def main(fname: str, playback_speed: float = 1.0, loop: bool = True, wait_for_co
 
     # Create timer to manage playback.
     timer = LSLPlaybackClock(rate=playback_speed, loop_time=wrap_dur if loop else None, max_sample_rate=max_rate)
+    read_heads = {_.name: 0 for _ in streamers}
     b_push = not wait_for_consumer  # A flag to indicate we can push samples.
     try:
         while True:
@@ -162,21 +163,22 @@ def main(fname: str, playback_speed: float = 1.0, loop: bool = True, wait_for_co
             timer.update()
             t_start, t_stop = timer.step_range
             for streamer in streamers:
-                b_dat = np.logical_and(
-                    streamer.tvec >= t_start,
-                    streamer.tvec < t_stop
-                )
-                if np.any(b_dat):
+                start_idx = read_heads[streamer.name] if t_start > 0 else 0
+                stop_idx = np.searchsorted(streamer.tvec, t_stop)
+                if stop_idx > start_idx:
                     if streamer.srate > 0:
-                        streamer.outlet.push_chunk(streams[streamer.stream_ix]["time_series"][b_dat],
-                                                   timestamp=timer.t0 + streamer.tvec[b_dat][-1])
+                        sl = np.s_[start_idx:stop_idx]
+                        push_dat = streams[streamer.stream_ix]["time_series"][sl]
+                        push_ts = timer.t0 + streamer.tvec[sl][-1]
+                        streamer.outlet.push_chunk(push_dat, timestamp=push_ts)
                     else:
                         # Irregular rate, like events and markers
-                        for dat_idx in np.where(b_dat)[0]:
+                        for dat_idx in range(start_idx, stop_idx):
                             sample = streams[streamer.stream_ix]["time_series"][dat_idx]
                             streamer.outlet.push_sample(sample,
                                                         timestamp=timer.t0 + streamer.tvec[dat_idx])
                             # print(f"Pushed sample: {sample}")
+                    read_heads[streamer.name] = stop_idx
             timer.sleep()
 
     except KeyboardInterrupt:

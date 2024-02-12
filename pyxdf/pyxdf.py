@@ -332,8 +332,8 @@ def load_xdf(
                     streams[StreamId]["footer"] = _xml2dict(fromstring(xml_string))
                 except ParseError as e:
                     logger.error(
-                        "found likely XDF file corruption (%s), "
-                        "ignoring corrupted XML element in footer." % e
+                        f"found likely XDF file corruption ({e}), "
+                        "ignoring corrupted XML element in footer."
                     )
             elif tag == 4:
                 # read [ClockOffset] chunk

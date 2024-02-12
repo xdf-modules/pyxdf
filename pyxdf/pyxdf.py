@@ -13,7 +13,7 @@ import io
 import struct
 import itertools
 import gzip
-from xml.etree.ElementTree import fromstring
+from xml.etree.ElementTree import fromstring, ParseError
 from collections import OrderedDict, defaultdict
 import logging
 from pathlib import Path
@@ -330,14 +330,11 @@ def load_xdf(
                 xml_string = f.read(chunklen - 6)
                 try:
                     streams[StreamId]["footer"] = _xml2dict(fromstring(xml_string))
-                except Exception as e:
-                    if type(e).__name__ == 'ParseError':
-                        logger.error(
-                            "found likely XDF file corruption (%s), "
-                            "ignoring corrupted XML element in footer." % e
-                        )
-                    else:
-                        raise
+                except ParseError as e:
+                    logger.error(
+                        "found likely XDF file corruption (%s), "
+                        "ignoring corrupted XML element in footer." % e
+                    )
             elif tag == 4:
                 # read [ClockOffset] chunk
                 temp[StreamId].clock_times.append(

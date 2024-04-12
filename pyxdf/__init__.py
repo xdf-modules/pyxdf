@@ -5,7 +5,7 @@
 
 try:
     from pkg_resources import get_distribution, DistributionNotFound
-except ImportError:
+except (DeprecationWarning, ImportError):
     from importlib.metadata import version
     __version__ = version(__name__)
 else:

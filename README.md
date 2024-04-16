@@ -1,6 +1,6 @@
 [![Latest PyPI Release](https://img.shields.io/pypi/v/pyxdf)](https://pypi.org/project/pyxdf/)
 [![Latest Conda Release](https://img.shields.io/conda/vn/conda-forge/pyxdf)](https://anaconda.org/conda-forge/pyxdf)
-![Python 3.5+](https://img.shields.io/badge/python-3.5+-green.svg)
+![Python 3.9+](https://img.shields.io/badge/python-3.9+-green.svg)
 ![License](https://img.shields.io/github/license/xdf-modules/xdf-python)
 
 pyXDF
@@ -34,9 +34,9 @@ for stream in data:
 plt.show()
 ```
 
-## CLI Examples
+## CLI examples
 
-`pyxdf` has an `examples` module. These can be run from the commandline for basic functionality.
+`pyxdf` has an `examples` module. These can be run from the command line for basic functionality.
 
 * `print_metadata` will enable a DEBUG logger to log read messages, then it will print basic metadata about each found stream.
     * `python -m pyxdf.examples.print_metadata -f=/path/to/my.xdf`

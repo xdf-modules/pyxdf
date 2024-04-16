@@ -3,16 +3,13 @@
 #
 # License: BSD (2-clause)
 
+from importlib.metadata import PackageNotFoundError, version
+
 try:
-    from pkg_resources import get_distribution, DistributionNotFound
-except (DeprecationWarning, ImportError):
-    from importlib.metadata import version
     __version__ = version(__name__)
-else:
-    try:
-        __version__ = get_distribution(__name__).version
-    except DistributionNotFound:  # package is not installed
-        __version__ = None
-from .pyxdf import load_xdf, resolve_streams, match_streaminfos
+except PackageNotFoundError:
+    __version__ = None
+
+from .pyxdf import load_xdf, match_streaminfos, resolve_streams
 
 __all__ = [load_xdf, resolve_streams, match_streaminfos]

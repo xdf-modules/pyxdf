@@ -48,7 +48,7 @@ setup(
         "pyxdf",
         "LSL",
         "Lab Streaming Layer",
-        "File Format",
+        "file format",
         "biosignals",
         "stream",
     ],

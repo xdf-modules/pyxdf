@@ -52,7 +52,7 @@ setup(
         "biosignals",
         "stream",
     ],
-    packages=find_packages(exclude=["contrib", "docs", "pyxdf.test*"]),
+    packages=find_packages(exclude=["pyxdf.test*"]),
     install_requires=["numpy"],
     extras_require={},
     package_data={},

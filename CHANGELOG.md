@@ -1,3 +1,7 @@
+## [UNRELEASED] - YYYY-MM-DD
+### Changed
+- Minimum required Python version is now 3.9 ([#100](https://github.com/xdf-modules/xdf-Python/pull/100) by [Clemens Brunner](https://github.com/cbrnr))
+
 ## [1.16.5] - 2024-01-12
 ### Added
 - Added compatibility with Python 3.12 ([#96](https://github.com/xdf-modules/xdf-Python/pull/96) by [Clemens Brunner](https://github.com/cbrnr))

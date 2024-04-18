@@ -1,4 +1,4 @@
-## [UNRELEASED] - YYYY-MM-DD
+## [1.16.6] - 2024-04-18
 ### Changed
 - Minimum required Python version is now 3.9 ([#100](https://github.com/xdf-modules/xdf-Python/pull/100) by [Clemens Brunner](https://github.com/cbrnr))
 

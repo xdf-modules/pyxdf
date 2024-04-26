@@ -407,6 +407,8 @@ def load_xdf(
         stream["info"]["effective_srate"] = tmp.effective_srate
         stream["time_series"] = tmp.time_series
         stream["time_stamps"] = tmp.time_stamps
+        stream["clock_times"] = tmp.clock_times
+        stream["clock_values"] = tmp.clock_values
 
     streams = [s for s in streams.values()]
     return streams, fileheader

@@ -1,3 +1,7 @@
+## [Unreleased] - YYYY-MM-DD
+### Added
+- Add `clock_times` and `clock_values` to stream dictionary ([#105](https://github.com/xdf-modules/pyxdf/pull/105) by [Fabian Grosch](https://github.com/expensne))
+
 ## [1.16.6] - 2024-04-18
 ### Changed
 - Minimum required Python version is now 3.9 ([#100](https://github.com/xdf-modules/xdf-Python/pull/100) by [Clemens Brunner](https://github.com/cbrnr))

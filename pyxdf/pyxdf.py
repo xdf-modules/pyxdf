@@ -9,17 +9,17 @@
 
 This function is closely following the load_xdf reference implementation.
 """
-import io
-import struct
-import itertools
+
 import gzip
-from xml.etree.ElementTree import fromstring, ParseError
-from collections import OrderedDict, defaultdict
+import io
+import itertools
 import logging
+import struct
+from collections import OrderedDict, defaultdict
 from pathlib import Path
+from xml.etree.ElementTree import ParseError, fromstring
 
 import numpy as np
-
 
 __all__ = ["load_xdf"]
 
@@ -81,7 +81,7 @@ def load_xdf(
     clock_reset_threshold_offset_seconds=1,
     clock_reset_threshold_offset_stds=10,
     winsor_threshold=0.0001,
-    verbose=None
+    verbose=None,
 ):
     """Import an XDF file.
 
@@ -210,9 +210,7 @@ def load_xdf(
     elif isinstance(select_streams, int):
         select_streams = [select_streams]
     elif all([isinstance(elem, dict) for elem in select_streams]):
-        select_streams = match_streaminfos(
-            resolve_streams(filename), select_streams
-        )
+        select_streams = match_streaminfos(resolve_streams(filename), select_streams)
         if not select_streams:  # no streams found
             raise ValueError("No matching streams found.")
     elif not all([isinstance(elem, int) for elem in select_streams]):
@@ -306,9 +304,7 @@ def load_xdf(
                 # noinspection PyBroadException
                 try:
                     nsamples, stamps, values = _read_chunk3(f, temp[StreamId])
-                    logger.debug(
-                        "  reading [%s,%s]" % (temp[StreamId].nchns, nsamples)
-                    )
+                    logger.debug("  reading [%s,%s]" % (temp[StreamId].nchns, nsamples))
                     # optionally send through the on_chunk function
                     if on_chunk is not None:
                         values, stamps, streams[StreamId] = on_chunk(
@@ -337,12 +333,8 @@ def load_xdf(
                     )
             elif tag == 4:
                 # read [ClockOffset] chunk
-                temp[StreamId].clock_times.append(
-                    struct.unpack("<d", f.read(8))[0]
-                )
-                temp[StreamId].clock_values.append(
-                    struct.unpack("<d", f.read(8))[0]
-                )
+                temp[StreamId].clock_times.append(struct.unpack("<d", f.read(8))[0])
+                temp[StreamId].clock_values.append(struct.unpack("<d", f.read(8))[0])
             else:
                 # skip other chunk types (Boundary, ...)
                 f.read(chunklen - 2)
@@ -509,7 +501,7 @@ def _xml2dict(t):
 
 def _scan_forward(f):
     """Scan forward through file object until after the next boundary chunk."""
-    blocklen = 2 ** 20
+    blocklen = 2**20
     signature = bytes(
         [
             0x43,
@@ -577,10 +569,7 @@ def _clock_sync(
 
                 # points where a glitch in the timing of successive clock
                 # measurements happened
-                mad = (
-                    np.median(np.abs(time_diff - median_ival))
-                    + np.finfo(float).eps
-                )
+                mad = np.median(np.abs(time_diff - median_ival)) + np.finfo(float).eps
                 cond1 = time_diff < 0
                 cond2 = (time_diff - median_ival) / mad > reset_threshold_stds
                 cond3 = time_diff - median_ival > reset_threshold_seconds
@@ -588,17 +577,10 @@ def _clock_sync(
 
                 # Points where a glitch in successive clock value estimates
                 # happened
-                mad = (
-                    np.median(np.abs(value_diff - median_slope))
-                    + np.finfo(float).eps
-                )
+                mad = np.median(np.abs(value_diff - median_slope)) + np.finfo(float).eps
                 cond1 = value_diff < 0
-                cond2 = (
-                    value_diff - median_slope
-                ) / mad > reset_threshold_offset_stds
-                cond3 = (
-                    value_diff - median_slope > reset_threshold_offset_seconds
-                )
+                cond2 = (value_diff - median_slope) / mad > reset_threshold_offset_stds
+                cond3 = value_diff - median_slope > reset_threshold_offset_seconds
                 value_glitch = cond1 | (cond2 & cond3)
                 resets_at = time_glitch & value_glitch
 
@@ -607,9 +589,7 @@ def _clock_sync(
                     ranges = [(0, len(clock_times) - 1)]
                 else:
                     indices = np.where(resets_at)[0]
-                    indices = np.hstack(
-                        (0, indices, indices + 1, len(resets_at) - 1)
-                    )
+                    indices = np.hstack((0, indices, indices + 1, len(resets_at) - 1))
                     ranges = np.reshape(indices, (2, -1)).T
 
             # Otherwise we just assume that there are no clock resets
@@ -624,8 +604,7 @@ def _clock_sync(
                     X = np.column_stack(
                         [
                             np.ones((stop - start,)),
-                            np.array(clock_times[start:stop])
-                            / winsor_threshold,
+                            np.array(clock_times[start:stop]) / winsor_threshold,
                         ]
                     )
                     y = np.array(clock_values[start:stop]) / winsor_threshold
@@ -638,9 +617,7 @@ def _clock_sync(
 
             # Apply the correction to all time stamps
             if len(ranges) == 1:
-                stream.time_stamps += coef[0][0] + (
-                    coef[0][1] * stream.time_stamps
-                )
+                stream.time_stamps += coef[0][0] + (coef[0][1] * stream.time_stamps)
             else:
                 for coef_i, range_i in zip(coef, ranges):
                     r = slice(range_i[0], range_i[1])

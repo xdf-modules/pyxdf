@@ -42,6 +42,12 @@ def test_load_file(file):
         np.testing.assert_array_equal(streams[0]["time_series"], s)
         np.testing.assert_array_almost_equal(streams[0]["time_stamps"], t)
 
+        clock_times = np.asarray([6.1, 7.1])
+        clock_values = np.asarray([-.1, -.1])
+
+        np.testing.assert_array_equal(streams[0]["clock_times"], clock_times)
+        np.testing.assert_array_almost_equal(streams[0]["clock_values"], clock_values)
+
         assert streams[1]["info"]["name"][0] == "SendDataString"
         assert streams[1]["info"]["type"][0] == "StringMarker"
         assert streams[1]["info"]["channel_count"][0] == "1"
@@ -66,3 +72,9 @@ def test_load_file(file):
         t = np.array([5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9])
         assert streams[1]["time_series"] == s
         np.testing.assert_array_almost_equal(streams[1]["time_stamps"], t)
+
+        clock_times = np.asarray([])
+        clock_values = np.asarray([])
+
+        np.testing.assert_array_equal(streams[1]["clock_times"], clock_times)
+        np.testing.assert_array_almost_equal(streams[1]["clock_values"], clock_values)

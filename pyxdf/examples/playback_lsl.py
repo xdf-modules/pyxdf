@@ -1,11 +1,12 @@
 import argparse
-import time
 import sys
-from typing import List, Optional
+import time
 from dataclasses import dataclass
+from typing import List, Optional
 
 import numpy as np
 import pylsl
+
 import pyxdf
 
 
@@ -53,22 +54,33 @@ class Streamer:
 
 
 class LSLPlaybackClock:
-    def __init__(self, rate: float = 1.0, loop_time: float = 0.0, max_sample_rate: Optional[float] = None):
+    def __init__(
+        self,
+        rate: float = 1.0,
+        loop_time: float = 0.0,
+        max_sample_rate: Optional[float] = None,
+    ):
         if rate != 1.0:
-            print("WARNING!! rate != 1.0; It is impossible to synchronize playback streams "
-                  "with real time streams.")
+            print(
+                "WARNING!! rate != 1.0; It is impossible to synchronize playback streams "
+                "with real time streams."
+            )
         self.rate: float = rate  # Maximum rate is loop_time / avg_update_interval, whatever that might be.
         self._boundary = loop_time
         self._max_srate = max_sample_rate
         decr = (1 / self._max_srate) if self._max_srate else 2 * sys.float_info.epsilon
         self._wall_start: float = pylsl.local_clock() - decr / 2
         self._file_read_s: float = 0  # File read header in seconds
-        self._prev_file_read_s: float = 0  # File read header in seconds for previous iteration
+        self._prev_file_read_s: float = (
+            0  # File read header in seconds for previous iteration
+        )
         self._n_loop: int = 0
 
     def reset(self, reset_file_position: bool = False) -> None:
         decr = (1 / self._max_srate) if self._max_srate else 2 * sys.float_info.epsilon
-        self._wall_start = pylsl.local_clock() - decr / 2 - self._file_read_s / self.rate
+        self._wall_start = (
+            pylsl.local_clock() - decr / 2 - self._file_read_s / self.rate
+        )
         self._n_loop = 0
         if reset_file_position:
             self._file_read_s = 0
@@ -117,8 +129,13 @@ class LSLPlaybackClock:
         time.sleep(duration / self.rate)
 
 
-def main(fname: str, playback_speed: float = 1.0, loop: bool = True, wait_for_consumer: bool = False):
-    streams, header = pyxdf.load_xdf(fname)
+def main(
+    fname: str,
+    playback_speed: float = 1.0,
+    loop: bool = True,
+    wait_for_consumer: bool = False,
+):
+    streams, _ = pyxdf.load_xdf(fname)
 
     # First iterate over all streams to calculate some globals.
     xdf_t0 = np.inf
@@ -140,12 +157,22 @@ def main(fname: str, playback_speed: float = 1.0, loop: bool = True, wait_for_co
         tvec = strm["time_stamps"]
         srate = float(strm["info"]["nominal_srate"][0])
         if len(tvec) > 0:
-            new_info: pylsl.StreamInfo = _create_info_from_xdf_stream_header(strm["info"])
+            new_info: pylsl.StreamInfo = _create_info_from_xdf_stream_header(
+                strm["info"]
+            )
             new_outlet: pylsl.StreamOutlet = pylsl.StreamOutlet(new_info)
-            streamers.append(Streamer(strm_ix, new_info.name(), tvec - xdf_t0, new_info, new_outlet, srate))
+            streamers.append(
+                Streamer(
+                    strm_ix, new_info.name(), tvec - xdf_t0, new_info, new_outlet, srate
+                )
+            )
 
     # Create timer to manage playback.
-    timer = LSLPlaybackClock(rate=playback_speed, loop_time=wrap_dur if loop else None, max_sample_rate=max_rate)
+    timer = LSLPlaybackClock(
+        rate=playback_speed,
+        loop_time=wrap_dur if loop else None,
+        max_sample_rate=max_rate,
+    )
     read_heads = {_.name: 0 for _ in streamers}
     b_push = not wait_for_consumer  # A flag to indicate we can push samples.
     try:
@@ -153,7 +180,9 @@ def main(fname: str, playback_speed: float = 1.0, loop: bool = True, wait_for_co
             if not b_push:
                 # We are looking for consumers.
                 time.sleep(0.01)
-                have_consumers = [streamer.outlet.have_consumers() for streamer in streamers]
+                have_consumers = [
+                    streamer.outlet.have_consumers() for streamer in streamers
+                ]
                 # b_push = any(have_consumers)
                 b_push = all(have_consumers)
                 if b_push:
@@ -175,8 +204,9 @@ def main(fname: str, playback_speed: float = 1.0, loop: bool = True, wait_for_co
                         # Irregular rate, like events and markers
                         for dat_idx in range(start_idx, stop_idx):
                             sample = streams[streamer.stream_ix]["time_series"][dat_idx]
-                            streamer.outlet.push_sample(sample,
-                                                        timestamp=timer.t0 + streamer.tvec[dat_idx])
+                            streamer.outlet.push_sample(
+                                sample, timestamp=timer.t0 + streamer.tvec[dat_idx]
+                            )
                             # print(f"Pushed sample: {sample}")
                     read_heads[streamer.name] = stop_idx
             timer.sleep()
@@ -186,14 +216,19 @@ def main(fname: str, playback_speed: float = 1.0, loop: bool = True, wait_for_co
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Playback an XDF file over LSL streams.")
-    parser.add_argument(
-        "filename",
-        type=str,
-        help="Path to the XDF file"
+    parser = argparse.ArgumentParser(
+        description="Playback an XDF file over LSL streams."
     )
-    parser.add_argument("--playback_speed", type=float, default=1.0, help="Playback speed multiplier.")
+    parser.add_argument("filename", type=str, help="Path to the XDF file")
+    parser.add_argument(
+        "--playback_speed", type=float, default=1.0, help="Playback speed multiplier."
+    )
     parser.add_argument("--loop", action="store_false")
     parser.add_argument("--wait_for_consumer", action="store_true")
     args = parser.parse_args()
-    main(args.filename, playback_speed=args.playback_speed, loop=args.loop, wait_for_consumer=args.wait_for_consumer)
+    main(
+        args.filename,
+        playback_speed=args.playback_speed,
+        loop=args.loop,
+        wait_for_consumer=args.wait_for_consumer,
+    )

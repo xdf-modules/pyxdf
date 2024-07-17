@@ -1,3 +1,5 @@
+## [UNRELEASED] - YYYY-MM-DD
+
 ## [1.16.7] - 2024-07-17
 ### Added
 - Add `clock_times` and `clock_values` to stream dictionary ([#105](https://github.com/xdf-modules/pyxdf/pull/105) by [Fabian Grosch](https://github.com/expensne))

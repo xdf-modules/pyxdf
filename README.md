@@ -11,32 +11,33 @@ pyXDF is a Python importer for [XDF](https://github.com/sccn/xdf) files.
 ## Sample usage
 
 ``` python
-import pyxdf
 import matplotlib.pyplot as plt
 import numpy as np
 
-data, header = pyxdf.load_xdf('test.xdf')
+import pyxdf
+
+data, header = pyxdf.load_xdf("test.xdf")
 
 for stream in data:
-    y = stream['time_series']
+    y = stream["time_series"]
 
     if isinstance(y, list):
         # list of strings, draw one vertical line for each marker
-        for timestamp, marker in zip(stream['time_stamps'], y):
+        for timestamp, marker in zip(stream["time_stamps"], y):
             plt.axvline(x=timestamp)
             print(f'Marker "{marker[0]}" @ {timestamp:.2f}s')
     elif isinstance(y, np.ndarray):
         # numeric data, draw as lines
-        plt.plot(stream['time_stamps'], y)
+        plt.plot(stream["time_stamps"], y)
     else:
-        raise RuntimeError('Unknown stream format')
+        raise RuntimeError("Unknown stream format")
 
 plt.show()
 ```
 
 ## CLI examples
 
-`pyxdf` has an `examples` module. These can be run from the command line for basic functionality.
+`pyxdf` has an `examples` module, which can be run from the command line for basic functionality.
 
 * `print_metadata` will enable a DEBUG logger to log read messages, then it will print basic metadata about each found stream.
     * `python -m pyxdf.examples.print_metadata -f=/path/to/my.xdf`

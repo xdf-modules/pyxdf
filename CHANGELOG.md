@@ -1,3 +1,5 @@
+## [UNRELEASED] - YYYY-MM-DD
+
 ## [1.16.8] - 2024-07-18
 ### Fixed
 - Fix reading numeric array data on big-endian hosts ([#98](https://github.com/xdf-modules/pyxdf/pull/98) by [Ben Beasley](https://github.com/musicinmybrain))

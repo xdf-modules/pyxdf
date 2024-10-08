@@ -16,7 +16,7 @@ def main(fname: str):
 
     print("Found {} streams:".format(len(streams)))
     for ix, stream in enumerate(streams):
-        msg = "Stream {}: {} - type {} - uid {} - shape {} at {} (effective {}) Hz"
+        msg = "Stream {}: {} - type {} - uid {} - shape {} in {} segments at {} (effective {}) Hz"
         print(
             msg.format(
                 ix + 1,
@@ -24,6 +24,7 @@ def main(fname: str):
                 stream["info"]["type"][0],
                 stream["info"]["uid"][0],
                 (int(stream["info"]["channel_count"][0]), len(stream["time_stamps"])),
+                len(stream["info"]["segments"]),
                 stream["info"]["nominal_srate"][0],
                 stream["info"]["effective_srate"],
             )

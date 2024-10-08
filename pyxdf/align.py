@@ -86,7 +86,7 @@ def _shift_align(old_timestamps, old_timeseries, new_timestamps):
     if missed > 0:
         unassigned_old = [i for i in range(len(old_timestamps)) if i not in source]
         raise RuntimeError(
-            f"Too few new timestamps. {missed} old timestamps ({old_timestamps[unassigned_old]}) found no corresponding new timestamp because it was already taken by another old timestamp. If your stream has multiple segments, this might be caused by small differences in effective srate between segments. Try different dejittering thresholds or support your own aligned_timestamps."
+            f"Too few new timestamps. {missed} old timestamps ({unassigned_old}:{old_timestamps[unassigned_old]}) found no corresponding new timestamp because all were already taken by other old timestamps. If your stream has multiple segments, this might be caused by small differences in effective srate between segments. Try different dejittering thresholds or support your own aligned_timestamps."
         )
 
     # Populate new timeseries with aligned values from old_timeseries
@@ -146,7 +146,9 @@ def align_streams(
         stamps = [stream["time_stamps"] for stream in streams]
         ts_first = min((min(s) for s in stamps))
         ts_last = max((max(s) for s in stamps))
-        full_dur = ts_last - ts_first
+        full_dur = (
+            ts_last - ts_first + (1 / sampling_rate)
+        )  # add one sample to include the last sample (see _jitter_removal)
         # Use np.linspace for precise control over the number of points and guaranteed inclusion of the stop value.
         # np.arange is better when you need direct control over step size but may exclude the stop value and accumulate floating-point errors.
         # Choose np.linspace for better precision and np.arange for efficiency with fixed steps.

@@ -37,12 +37,12 @@ plt.show()
 
 ## CLI examples
 
-`pyxdf` has an `examples` module, which can be run from the command line for basic functionality.
+`pyxdf` has a `cli` module with the following basic command line tools:
 
-* `print_metadata` will enable a DEBUG logger to log read messages, then it will print basic metadata about each found stream.
-    * `python -m pyxdf.examples.print_metadata -f=/path/to/my.xdf`
+* `print_metadata` will enable a DEBUG logger to log read messages, then it will print basic metadata for each found stream.
+    * `python -m pyxdf.cli.print_metadata -f=/path/to/my.xdf`
 * `playback_lsl` will open an XDF file then replay its data in an infinite loop, but using current timestamps. This is useful for prototyping online processing.
-    * `python -m pyxdf.examples.playback_lsl /path/to/my.xdf` 
+    * `python -m pyxdf.cli.playback_lsl /path/to/my.xdf` 
 
 ## Installation
 

@@ -16,7 +16,10 @@ def main(fname: str):
 
     print("Found {} streams:".format(len(streams)))
     for ix, stream in enumerate(streams):
-        msg = "Stream {}: {} - type {} - uid {} - shape {} in {} segments at {} (effective {}) Hz"
+        msg = (
+            "Stream {}: {} - type {} - uid {} - shape {} in {} segments at {} "
+            "(effective {}) Hz"
+        )
         print(
             msg.format(
                 ix + 1,

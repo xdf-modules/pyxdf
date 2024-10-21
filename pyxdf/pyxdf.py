@@ -550,7 +550,7 @@ def _clock_sync(
             if not clock_times:
                 continue
 
-            # Detect clock resets (e.g., computer restarts during recording) if 
+            # Detect clock resets (e.g., computer restarts during recording) if
             # requested, this is only for cases where "everything goes wrong" during
             # recording note that this is a fancy feature that is not needed for normal
             # XDF compliance.

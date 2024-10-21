@@ -370,6 +370,10 @@ def load_xdf(
         )
 
     # perform jitter removal if requested
+    for tmp in temp.values():
+        # initialize segment list in case jitter_removal was not selected
+        tmp.segments = [(0, len(stream.time_series) - 1)]  # inclusive
+
     if dejitter_timestamps:
         logger.info("  performing jitter removal...")
         temp = _jitter_removal(
@@ -397,6 +401,7 @@ def load_xdf(
             )
         stream["info"]["stream_id"] = k
         stream["info"]["effective_srate"] = tmp.effective_srate
+        stream["info"]["segments"] = tmp.segments
         stream["time_series"] = tmp.time_series
         stream["time_stamps"] = tmp.time_stamps
         stream["clock_times"] = tmp.clock_times
@@ -646,7 +651,8 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
             # 0th sample is a segment start and last sample is a segment stop
             seg_starts = np.hstack(([0], break_inds))
             seg_stops = np.hstack((break_inds - 1, nsamples - 1))  # inclusive
-
+            for a, b in zip(seg_starts, seg_stops):
+                stream.segments.append((a, b))
             # Process each segment separately
             for start_ix, stop_ix in zip(seg_starts, seg_stops):
                 # Calculate time stamps assuming constant intervals within each
@@ -666,6 +672,8 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
                     stream.time_stamps[seg_stops] + stream.tdiff
                 ) - stream.time_stamps[seg_starts]
                 stream.effective_srate = np.sum(counts) / np.sum(durations)
+        else:
+            stream.segments = [0, nsamples - 1]
 
         srate, effective_srate = stream.srate, stream.effective_srate
         if srate != 0 and np.abs(srate - effective_srate) / srate > 0.1:

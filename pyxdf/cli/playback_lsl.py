@@ -224,7 +224,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--playback_speed", type=float, default=1.0, help="Playback speed multiplier."
     )
-    parser.add_argument("--loop", action="store_true", help="Loop playback of the file.")
+    parser.add_argument(
+        "--loop", action="store_true", help="Loop playback of the file."
+    )
     parser.add_argument("--wait_for_consumer", action="store_true")
     args = parser.parse_args()
     main(

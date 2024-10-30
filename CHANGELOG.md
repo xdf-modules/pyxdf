@@ -1,7 +1,11 @@
 ## [UNRELEASED] - YYYY-MM-DD
 ### Fixed
 - Expose detected segment (used in dejittering) as `stream["info"]["segments"]` ([#117](https://github.com/xdf-modules/pyxdf/pull/117) by [Robert Guggenberger](https://github.com/agricolab))
-- Fix logic of `--loop` argument in `pyxdf.examples.playback_lsl.py`: Supplying `--loop` will loop, whereas ommitting `--loop` will NOT loop ([#119](https://github.com/xdf-modules/pyxdf/pull/119) by [Stefan Appelhoff](https://github.com/sappelhoff))
+- A non-looping playback of an XDF file will no longer lead to a `TypeError` ([#119](https://github.com/xdf-modules/pyxdf/pull/119) by [Stefan Appelhoff](https://github.com/sappelhoff))
+
+### Changed
+- Reverse logic of `--loop` argument in `pyxdf.examples.playback_lsl.py` to be more in line with standard practice: Supplying `--loop` will loop, whereas ommitting `--loop` will NOT loop ([#119](https://github.com/xdf-modules/pyxdf/pull/119) by [Stefan Appelhoff](https://github.com/sappelhoff))
+
 
 
 ### Changed

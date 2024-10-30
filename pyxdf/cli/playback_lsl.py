@@ -100,7 +100,7 @@ class LSLPlaybackClock:
             # Previous iteration ended at the file boundary; wrap around and reset.
             self._prev_file_read_s = 0.0
             self._n_loop += 1
-        overrun = self._n_loop * self._boundary
+        overrun = self._n_loop * self._boundary if self._boundary else 0
         self._file_read_s = _file_read_s - overrun
         if self._boundary and self._file_read_s >= self._boundary:
             # Previous was below boundary, now above boundary.
@@ -133,7 +133,7 @@ class LSLPlaybackClock:
 def main(
     fname: str,
     playback_speed: float = 1.0,
-    loop: bool = True,
+    loop: bool = False,
     wait_for_consumer: bool = False,
 ):
     streams, _ = pyxdf.load_xdf(fname)
@@ -192,10 +192,12 @@ def main(
                     continue
             timer.update()
             t_start, t_stop = timer.step_range
+            all_streams_exhausted = True
             for streamer in streamers:
                 start_idx = read_heads[streamer.name] if t_start > 0 else 0
                 stop_idx = np.searchsorted(streamer.tvec, t_stop)
                 if stop_idx > start_idx:
+                    all_streams_exhausted = False
                     if streamer.srate > 0:
                         sl = np.s_[start_idx:stop_idx]
                         push_dat = streams[streamer.stream_ix]["time_series"][sl]
@@ -210,24 +212,35 @@ def main(
                             )
                             # print(f"Pushed sample: {sample}")
                     read_heads[streamer.name] = stop_idx
+
+            if not loop and all_streams_exhausted:
+                print("Playback finished.")
+                break
             timer.sleep()
 
     except KeyboardInterrupt:
-        print("TODO: Shutdown outlets")
+        print("Keyboard interrupt received. Deleting outlets...")
+        for streamer in streamers:
+            del streamer.outlet
+        print("Shutdown complete.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Playback an XDF file over LSL streams."
     )
-    parser.add_argument("filename", type=str, help="Path to the XDF file")
+    parser.add_argument("filename", type=str, help="Path to the XDF file.")
     parser.add_argument(
         "--playback_speed", type=float, default=1.0, help="Playback speed multiplier."
     )
     parser.add_argument(
         "--loop", action="store_true", help="Loop playback of the file."
     )
-    parser.add_argument("--wait_for_consumer", action="store_true")
+    parser.add_argument(
+        "--wait_for_consumer",
+        action="store_true",
+        help="Wait for consumer before starting playback.",
+    )
     args = parser.parse_args()
     main(
         args.filename,

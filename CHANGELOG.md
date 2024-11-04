@@ -4,12 +4,8 @@
 - A non-looping playback of an XDF file will no longer lead to a `TypeError` ([#119](https://github.com/xdf-modules/pyxdf/pull/119) by [Stefan Appelhoff](https://github.com/sappelhoff))
 
 ### Changed
-- Reverse logic of `--loop` argument in `pyxdf.examples.playback_lsl.py` to be more in line with standard practice: Supplying `--loop` will loop, whereas ommitting `--loop` will NOT loop ([#119](https://github.com/xdf-modules/pyxdf/pull/119) by [Stefan Appelhoff](https://github.com/sappelhoff))
-
-
-
-### Changed
 - Rename `pyxdf.examples` module to `pyxdf.cli` ([#118](https://github.com/xdf-modules/xdf-Python/pull/118) by [Clemens Brunner](https://github.com/cbrnr))
+- Reverse logic of `--loop` argument in `pyxdf.examples.playback_lsl.py` to be more in line with standard practice: Supplying `--loop` will loop, whereas ommitting `--loop` will NOT loop ([#119](https://github.com/xdf-modules/pyxdf/pull/119) by [Stefan Appelhoff](https://github.com/sappelhoff))
 
 ## [1.16.8] - 2024-07-18
 ### Fixed

@@ -2,6 +2,9 @@
 ### Fixed
 - Expose detected segment (used in dejittering) as `stream["info"]["segments"]` ([#117](https://github.com/xdf-modules/pyxdf/pull/117) by [Robert Guggenberger](https://github.com/agricolab))
 
+### Changed
+- Rename `pyxdf.examples` module to `pyxdf.cli` ([#118](https://github.com/xdf-modules/xdf-Python/pull/118) by [Clemens Brunner](https://github.com/cbrnr))
+
 ## [1.16.8] - 2024-07-18
 ### Fixed
 - Fix reading numeric array data on big-endian hosts ([#98](https://github.com/xdf-modules/pyxdf/pull/98) by [Ben Beasley](https://github.com/musicinmybrain))

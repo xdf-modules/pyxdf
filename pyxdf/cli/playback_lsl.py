@@ -62,10 +62,10 @@ class LSLPlaybackClock:
     ):
         if rate != 1.0:
             print(
-                "WARNING!! rate != 1.0; It is impossible to synchronize playback streams "
-                "with real time streams."
+                "WARNING!! rate != 1.0; it is impossible to synchronize playback "
+                "streams with real time streams."
             )
-        self.rate: float = rate  # Maximum rate is loop_time / avg_update_interval, whatever that might be.
+        self.rate: float = rate  # Maximum rate is loop_time / avg_update_interval
         self._boundary = loop_time
         self._max_srate = max_sample_rate
         decr = (1 / self._max_srate) if self._max_srate else 2 * sys.float_info.epsilon
@@ -89,7 +89,7 @@ class LSLPlaybackClock:
     def set_rate(self, rate: float) -> None:
         self.rate = rate
         # Note: We do not update file_read_s and prev_file_read_s.
-        #  Changing the playback rate does not change where we are in the file.
+        # Changing the playback rate does not change where we are in the file.
         self.reset(reset_file_position=False)
 
     def update(self):
@@ -121,7 +121,8 @@ class LSLPlaybackClock:
             if self._max_srate <= 0:
                 duration = 0.005
             else:
-                # Check to see if the current time is not already beyond the expected time of the next iteration.
+                # Check to see if the current time is not already beyond the expected
+                # time of the next iteration.
                 step_time = 1 / self._max_srate
                 now_read_s = self.rate * (pylsl.local_clock() - self._wall_start)
                 next_read_s = self._file_read_s + step_time

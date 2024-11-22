@@ -348,7 +348,7 @@ def load_xdf(
             if stream.fmt == "string":
                 stream.time_series = []
             else:
-                stream.time_series = np.zeros((stream.nchns, 0))
+                stream.time_series = np.zeros((0, stream.nchns))
 
     # perform (fault-tolerant) clock synchronization if requested
     if synchronize_clocks:

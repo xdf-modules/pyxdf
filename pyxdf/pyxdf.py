@@ -348,7 +348,7 @@ def load_xdf(
             if stream.fmt == "string":
                 stream.time_series = []
             else:
-                stream.time_series = np.zeros((stream.nchns, 0))
+                stream.time_series = np.zeros((0, stream.nchns))
 
     # perform (fault-tolerant) clock synchronization if requested
     if synchronize_clocks:
@@ -364,10 +364,6 @@ def load_xdf(
         )
 
     # perform jitter removal if requested
-    for tmp in temp.values():
-        # initialize segment list in case jitter_removal was not selected
-        tmp.segments = [(0, len(stream.time_series) - 1)]  # inclusive
-
     if dejitter_timestamps:
         logger.info("  performing jitter removal...")
         temp = _jitter_removal(
@@ -382,6 +378,10 @@ def load_xdf(
                 stream.effective_srate = len(stream.time_stamps) / duration
             else:
                 stream.effective_srate = 0.0
+            # initialize segment list in case jitter_removal was not selected
+            stream.segments = []
+            if len(stream.time_stamps) > 0:
+                stream.segments.append((0, len(stream.time_series) - 1))  # inclusive
 
     for k in streams.keys():
         stream = streams[k]
@@ -629,6 +629,7 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
     for stream_id, stream in streams.items():
         stream.effective_srate = 0  # will be recalculated if possible
         nsamples = len(stream.time_stamps)
+        stream.segments = []
         if nsamples > 0 and stream.srate > 0:
             # Identify breaks in the time_stamps
             diffs = np.diff(stream.time_stamps)
@@ -663,8 +664,6 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
                     stream.time_stamps[seg_stops] + stream.tdiff
                 ) - stream.time_stamps[seg_starts]
                 stream.effective_srate = np.sum(counts) / np.sum(durations)
-        else:
-            stream.segments = [0, nsamples - 1]
 
         srate, effective_srate = stream.srate, stream.effective_srate
         if srate != 0 and np.abs(srate - effective_srate) / srate > 0.1:

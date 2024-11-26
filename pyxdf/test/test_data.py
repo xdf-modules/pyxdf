@@ -89,4 +89,7 @@ def test_load_file(file):
         np.testing.assert_array_equal(streams[1]["clock_times"], clock_times)
         np.testing.assert_array_almost_equal(streams[1]["clock_values"], clock_values)
 
+        streams, header = load_xdf(
+            file, jitter_break_threshold_seconds=0.001, jitter_break_threshold_samples=1
+        )
         assert s[0]["info"]["segments"] == [(0, 0), (1, 3), (4, 8)]

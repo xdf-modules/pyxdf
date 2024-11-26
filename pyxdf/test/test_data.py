@@ -92,4 +92,4 @@ def test_load_file(file):
         streams, header = load_xdf(
             file, jitter_break_threshold_seconds=0.001, jitter_break_threshold_samples=1
         )
-        assert s[0]["info"]["segments"] == [(0, 0), (1, 3), (4, 8)]
+        assert streams[0]["info"]["segments"] == [(0, 0), (1, 3), (4, 8)]

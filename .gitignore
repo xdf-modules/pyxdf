@@ -112,3 +112,6 @@ venv.bak/
 
 # Dynamic version file
 /src/pyxdf/__version__.py
+
+# Test files
+example-files/

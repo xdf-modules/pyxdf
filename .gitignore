@@ -107,5 +107,8 @@ venv.bak/
 .idea
 
 # cython temporaries
-/pyxdf/pyxdf.c
-/pyxdf/pyxdf.html
+/src/pyxdf/pyxdf.c
+/src/pyxdf/pyxdf.html
+
+# Dynamic version file
+/src/pyxdf/__version__.py

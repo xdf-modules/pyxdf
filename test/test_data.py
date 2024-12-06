@@ -6,7 +6,7 @@ import pytest
 from pyxdf import load_xdf
 
 # requires git clone https://github.com/xdf-modules/example-files.git
-# into the root xdf-python folder
+# into the root pyxdf folder
 path = Path("example-files")
 extensions = ["*.xdf", "*.xdfz", "*.xdf.gz"]
 files = []

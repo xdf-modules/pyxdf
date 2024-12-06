@@ -1,0 +1,63 @@
+[project]
+name = "pyxdf"
+description = "Python library for importing XDF (Extensible Data Format)"
+authors = [
+  { name = "Christian Kothe", email = "christian.kothe@intheon.io" },
+  { name = "Chadwick Boulay", email = "chadwick.boulay@gmail.com" },
+  { name = "Clemens Brunner", email = "clemens.brunner@gmail.com" }
+]
+license = {file = "LICENSE"}
+readme = "README.md"
+requires-python = ">=3.9"
+dynamic = ["version"]
+keywords = [
+  "XDF",
+  "pyxdf",
+  "LSL",
+  "Lab Streaming Layer",
+  "file format",
+  "biosignals",
+  "stream",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
+  "License :: OSI Approved :: BSD License",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "numpy>=2.0.2",
+]
+
+[project.urls]
+Repository = "https://github.com/xdf-modules/pyxdf"
+Issues = "https://github.com/xdf-modules/pyxdf/issues"
+Changelog = "https://github.com/xdf-modules/pyxdf/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "ruff>=0.8.2",
+]
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/pyxdf/__version__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pyxdf"]

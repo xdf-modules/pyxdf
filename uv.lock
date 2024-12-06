@@ -117,34 +117,26 @@ wheels = [
 
 [[package]]
 name = "pyxdf"
-version = "1.16.9.dev19+gf6b0619.d20241206"
+version = "1.16.9.dev20+gac25a6e.d20241206"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },
 ]
 
-[package.optional-dependencies]
-dev = [
-    { name = "ruff" },
-]
-test = [
-    { name = "pytest" },
-]
-
 [package.dev-dependencies]
 dev = [
+    { name = "pytest" },
     { name = "ruff" },
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "numpy", specifier = ">=2.0.2" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.3.4" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.2" },
-]
+requires-dist = [{ name = "numpy", specifier = ">=2.0.2" }]
 
 [package.metadata.requires-dev]
-dev = [{ name = "ruff", specifier = ">=0.8.2" }]
+dev = [
+    { name = "pytest", specifier = ">=8.3.4" },
+    { name = "ruff", specifier = ">=0.8.2" },
+]
 
 [[package]]
 name = "ruff"

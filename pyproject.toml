@@ -43,13 +43,9 @@ Repository = "https://github.com/xdf-modules/pyxdf"
 Issues = "https://github.com/xdf-modules/pyxdf/issues"
 Changelog = "https://github.com/xdf-modules/pyxdf/blob/main/CHANGELOG.md"
 
-[project.optional-dependencies]
-test = [
-    "pytest>=8.3.4",
-]
-
 [dependency-groups]
 dev = [
+    "pytest>=8.3.4",
     "ruff>=0.8.2",
 ]
 

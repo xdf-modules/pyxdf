@@ -20,25 +20,14 @@ keywords = [
   "stream",
 ]
 classifiers = [
-  # How mature is this project? Common values are
-  #   3 - Alpha
-  #   4 - Beta
-  #   5 - Production/Stable
   "Development Status :: 4 - Beta",
-
-  # Indicate who your project is intended for
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "Topic :: Scientific/Engineering",
-
-  # Pick your license as you wish (see also "license" above)
   "License :: OSI Approved :: BSD License",
-
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
   "Operating System :: MacOS",
-
-  # Specify the Python versions you support here.
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
@@ -58,6 +47,8 @@ Changelog = "https://github.com/xdf-modules/pyxdf/blob/main/CHANGELOG.md"
 test = [
     "pytest>=8.3.4",
 ]
+
+[dependency-groups]
 dev = [
     "ruff>=0.8.2",
 ]

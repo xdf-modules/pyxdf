@@ -633,7 +633,7 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
         if nsamples > 0 and stream.srate > 0:
             # Identify breaks in the time_stamps
             diffs = np.diff(stream.time_stamps)
-            b_breaks = diffs > np.max(
+            b_breaks = np.abs(diffs) > np.max(
                 (threshold_seconds, threshold_samples * stream.tdiff)
             )
             # find indices (+ 1 to compensate for lost sample in np.diff)

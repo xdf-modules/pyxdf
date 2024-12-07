@@ -654,7 +654,20 @@ def _clock_sync(
     return streams
 
 
-def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
+def _detect_breaks(stream, threshold_seconds=1.0, threshold_samples=500):
+    """Detect breaks in the time_stamps of a stream.
+
+    Returns:
+        b_breaks : 1D bool array representing breaks between values.
+    """
+    diffs = np.diff(stream.time_stamps)
+    b_breaks = (diffs < 0) | (
+        diffs > np.max((threshold_seconds, threshold_samples * stream.tdiff))
+    )
+    return b_breaks
+
+
+def _jitter_removal(streams, threshold_seconds=1.0, threshold_samples=500):
     for stream in streams.values():
         stream.effective_srate = 0  # will be recalculated if possible
         nsamples = len(stream.time_stamps)
@@ -664,38 +677,28 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
                 stream.segments.append((0, nsamples - 1))  # inclusive
                 continue
 
-            # Identify breaks in the time_stamps
-            diffs = np.diff(stream.time_stamps)
-            b_breaks = diffs > np.max(
-                (threshold_seconds, threshold_samples * stream.tdiff)
-            )
-            # find indices (+ 1 to compensate for lost sample in np.diff)
-            break_inds = np.where(b_breaks)[0] + 1
-
-            # Get indices delimiting segments without breaks
-            # 0th sample is a segment start and last sample is a segment stop
-            seg_starts = np.hstack(([0], break_inds))
-            seg_stops = np.hstack((break_inds - 1, nsamples - 1))  # inclusive
-            for a, b in zip(seg_starts, seg_stops):
-                stream.segments.append((a, b))
+            # Find boundary breaks
+            b_breaks = _detect_breaks(stream, threshold_seconds, threshold_samples)
+            # Find segment indices
+            segments, start_idx, stop_idx = _find_segment_indices(b_breaks)
+            logger.debug(f" Stream {stream.stream_id}: segments={len(segments)}")
+            stream.segments.extend(segments)
 
             # Process each segment separately
-            for start_ix, stop_ix in zip(seg_starts, seg_stops):
+            for start_i, stop_i in segments:
                 # Calculate time stamps assuming constant intervals within each segment
-                # (stop_ix + 1 because we want inclusive closing range)
-                idx = np.arange(start_ix, stop_ix + 1, 1)[:, None]
+                # (stop_i + 1 because we want inclusive closing range)
+                idx = np.arange(start_i, stop_i + 1, 1)[:, None]
                 X = np.concatenate((np.ones_like(idx), idx), axis=1)
                 y = stream.time_stamps[idx]
                 mapping = np.linalg.lstsq(X, y, rcond=-1)[0]
                 stream.time_stamps[idx] = mapping[0] + mapping[1] * idx
 
             # Recalculate effective_srate if possible
-            counts = (seg_stops + 1) - seg_starts
+            counts = (stop_idx + 1) - start_idx
             if np.any(counts > 1):
                 # Calculate range segment duration
-                durations = (
-                    stream.time_stamps[seg_stops] - stream.time_stamps[seg_starts]
-                )
+                durations = stream.time_stamps[stop_idx] - stream.time_stamps[start_idx]
                 stream.effective_srate = np.sum(counts - 1) / np.sum(durations)
 
             srate, effective_srate = stream.srate, stream.effective_srate

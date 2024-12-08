@@ -629,8 +629,8 @@ def _detect_breaks(stream, threshold_seconds=1.0, threshold_samples=500):
     """Detect breaks in the time_stamps of a stream."""
     # Identify breaks in the time_stamps
     diffs = np.diff(stream.time_stamps)
-    b_breaks = np.abs(diffs) > np.max(
-        (threshold_seconds, threshold_samples * stream.tdiff)
+    b_breaks = (diffs <= 0) | (
+        diffs > np.max((threshold_seconds, threshold_samples * stream.tdiff))
     )
     # find indices (+ 1 to compensate for lost sample in np.diff)
     break_inds = np.where(b_breaks)[0] + 1

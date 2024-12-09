@@ -334,7 +334,7 @@ def load_xdf(
                 f.read(chunklen - 2)
 
     # Concatenate the signal across chunks
-    for stream in temp.values():
+    for stream_id, stream in temp.items():
         if stream.time_stamps:
             # stream with non-empty list of chunks
             stream.time_stamps = np.concatenate(stream.time_stamps)
@@ -342,6 +342,10 @@ def load_xdf(
                 stream.time_series = list(itertools.chain(*stream.time_series))
             else:
                 stream.time_series = np.concatenate(stream.time_series)
+            # Handle samples that may have arrived out-of-order, sorting
+            # data by ground truth timestamps if necessary. Identical
+            # timestamps will remain, but can be handled by dejittering.
+            stream = _ensure_sorted(stream_id, stream)
         else:
             # stream without any chunks
             stream.time_stamps = np.zeros((0,))
@@ -534,6 +538,25 @@ def _scan_forward(f):
             return False
 
 
+def _ensure_sorted(stream_id, stream):
+    diffs = np.diff(stream.time_stamps)
+    non_strict_inc_count = np.sum(diffs <= 0)
+    if non_strict_inc_count > 0:
+        msg = "  stream %d not monotonic %d sample(s) out-of-order. Sorting..."
+        logger.info(msg, stream_id, non_strict_inc_count)
+        ind = np.argsort(stream.time_stamps, kind="stable")
+        stream.time_stamps = stream.time_stamps[ind]
+        if stream.fmt == "string":
+            stream.time_series = np.array(stream.time_series)[ind].tolist()
+        else:
+            stream.time_series = stream.time_series[ind]
+        identical_timestamp_count = len(diffs) - np.count_nonzero(diffs)
+        if identical_timestamp_count > 0:
+            msg = "  stream %d contains %d identical timestamp(s)."
+            logger.info(msg, stream_id, identical_timestamp_count)
+    return stream
+
+
 def _clock_sync(
     streams,
     handle_clock_resets=True,
@@ -629,9 +652,7 @@ def _detect_breaks(stream, threshold_seconds=1.0, threshold_samples=500):
     """Detect breaks in the time_stamps of a stream."""
     # Identify breaks in the time_stamps
     diffs = np.diff(stream.time_stamps)
-    b_breaks = (diffs <= 0) | (
-        diffs > np.max((threshold_seconds, threshold_samples * stream.tdiff))
-    )
+    b_breaks = diffs > np.max((threshold_seconds, threshold_samples * stream.tdiff))
     # find indices (+ 1 to compensate for lost sample in np.diff)
     break_inds = np.where(b_breaks)[0] + 1
     return break_inds

@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 class StreamData:
     """Temporary per-stream data."""
 
-    def __init__(self, xml):
-        """Init a new StreamData object from a stream header."""
+    def __init__(self, xml, stream_id):
+        """Init a new StreamData object from a stream header and ID."""
         fmts = dict(
             double64=np.float64,
             float32=np.float32,
@@ -40,6 +40,8 @@ class StreamData:
             int8=np.int8,
             int64=np.int64,
         )
+        # stream_id
+        self.stream_id = stream_id
         # number of channels
         self.nchns = int(xml["info"]["channel_count"][0])
         # nominal sampling rate in Hz
@@ -295,7 +297,7 @@ def load_xdf(
                 streams[StreamId] = hdr
                 logger.debug("  found stream " + hdr["info"]["name"][0])
                 # initialize per-stream temp data
-                temp[StreamId] = StreamData(hdr)
+                temp[StreamId] = StreamData(hdr, StreamId)
             elif tag == 3:
                 # read [Samples] chunk...
                 # noinspection PyBroadException
@@ -628,7 +630,7 @@ def _clock_sync(
 
 
 def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
-    for stream_id, stream in streams.items():
+    for stream in streams.values():
         stream.effective_srate = 0  # will be recalculated if possible
         nsamples = len(stream.time_stamps)
         if nsamples > 0:
@@ -677,7 +679,7 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
                     "Stream %d: Calculated effective sampling rate %.4f Hz is different "
                     "from specified rate %.4f Hz."
                 )
-                logger.warning(msg, stream_id, effective_srate, srate)
+                logger.warning(msg, stream.stream_id, effective_srate, srate)
     return streams
 
 

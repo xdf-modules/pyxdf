@@ -560,6 +560,52 @@ def _find_segment_indices(b_breaks):
     return segments, start_idx, end_idx
 
 
+def _detect_clock_resets(
+    stream,
+    time_thresh_stds,
+    time_thresh_secs,
+    value_thresh_stds,
+    value_thresh_secs,
+):
+    # First detect potential breaks in the synchronization data; this is
+    # only necessary when the importer should be able to deal with
+    # recordings where the computer that served a stream was restarted or
+    # hot-swapped during an ongoing recording, or the clock was reset
+    # otherwise.
+
+    clock_times = stream.clock_times
+    clock_values = stream.clock_values
+    time_diff = np.diff(clock_times)
+    value_diff = np.abs(np.diff(clock_values))
+    median_ival = np.median(time_diff)
+    median_slope = np.median(value_diff)
+
+    # Points where a glitch in the timing of successive clock measurements
+    # happened
+    mad = np.median(np.abs(time_diff - median_ival)) + np.finfo(float).eps
+    cond1 = time_diff < 0
+    cond2 = (time_diff - median_ival) / mad > time_thresh_stds
+    cond3 = time_diff - median_ival > time_thresh_secs
+    time_glitch = cond1 | (cond2 & cond3)
+
+    # Points where a glitch in successive clock value estimates happened
+    mad = np.median(np.abs(value_diff - median_slope)) + np.finfo(float).eps
+    cond1 = value_diff < 0
+    cond2 = (value_diff - median_slope) / mad > value_thresh_stds
+    cond3 = value_diff - median_slope > value_thresh_secs
+    value_glitch = cond1 | (cond2 & cond3)
+    resets_at = time_glitch & value_glitch
+
+    # Determine the [start,end] index ranges between resets
+    if not any(resets_at):
+        ranges = [(0, len(clock_times) - 1)]
+    else:
+        indices = np.where(resets_at)[0]
+        indices = np.hstack((0, indices, indices + 1, len(resets_at) - 1))
+        ranges = np.reshape(indices, (2, -1)).T
+    return ranges
+
+
 def _clock_sync(
     streams,
     handle_clock_resets=True,
@@ -569,7 +615,7 @@ def _clock_sync(
     reset_threshold_offset_seconds=1,
     winsor_threshold=0.0001,
 ):
-    for stream in streams.values():
+    for stream_id, stream in streams.items():
         if len(stream.time_stamps) > 0:
             clock_times = stream.clock_times
             clock_values = stream.clock_values
@@ -581,41 +627,14 @@ def _clock_sync(
             # recording note that this is a fancy feature that is not needed for normal
             # XDF compliance.
             if handle_clock_resets and len(clock_times) > 1:
-                # First detect potential breaks in the synchronization data; this is
-                # only necessary when the importer should be able to deal with
-                # recordings where the computer that served a stream was restarted or
-                # hot-swapped during an ongoing recording, or the clock was reset
-                # otherwise.
-
-                time_diff = np.diff(clock_times)
-                value_diff = np.abs(np.diff(clock_values))
-                median_ival = np.median(time_diff)
-                median_slope = np.median(value_diff)
-
-                # points where a glitch in the timing of successive clock measurements
-                # happened
-                mad = np.median(np.abs(time_diff - median_ival)) + np.finfo(float).eps
-                cond1 = time_diff < 0
-                cond2 = (time_diff - median_ival) / mad > reset_threshold_stds
-                cond3 = time_diff - median_ival > reset_threshold_seconds
-                time_glitch = cond1 | (cond2 & cond3)
-
-                # Points where a glitch in successive clock value estimates happened
-                mad = np.median(np.abs(value_diff - median_slope)) + np.finfo(float).eps
-                cond1 = value_diff < 0
-                cond2 = (value_diff - median_slope) / mad > reset_threshold_offset_stds
-                cond3 = value_diff - median_slope > reset_threshold_offset_seconds
-                value_glitch = cond1 | (cond2 & cond3)
-                resets_at = time_glitch & value_glitch
-
-                # Determine the [begin,end] index ranges between resets
-                if not any(resets_at):
-                    ranges = [(0, len(clock_times) - 1)]
-                else:
-                    indices = np.where(resets_at)[0]
-                    indices = np.hstack((0, indices, indices + 1, len(resets_at) - 1))
-                    ranges = np.reshape(indices, (2, -1)).T
-
+                logger.debug(f" Handling clock resets stream: {stream_id}")
+                ranges = _detect_clock_resets(
+                    stream,
+                    reset_threshold_stds,
+                    reset_threshold_seconds,
+                    reset_threshold_offset_stds,
+                    reset_threshold_offset_seconds,
+                )
             # Otherwise we just assume that there are no clock resets
             else:
                 ranges = [(0, len(clock_times) - 1)]

@@ -601,7 +601,7 @@ def _detect_clock_resets(
         ranges = [(0, len(clock_times) - 1)]
     else:
         indices = np.where(resets_at)[0]
-        indices = np.hstack((0, indices, indices + 1, len(resets_at) - 1))
+        indices = np.hstack((0, indices + 1, indices, len(resets_at)))
         ranges = np.reshape(indices, (2, -1)).T
     return ranges
 

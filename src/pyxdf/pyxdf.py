@@ -538,6 +538,31 @@ def _scan_forward(f):
             return False
 
 
+def _find_segment_indices(b_breaks):
+    """Convert boundary breaks array to segment indices.
+
+    Args:
+        b_breaks : 1D bool array representing breaks between values.
+
+    Returns:
+        segments : list[tuple] (one tuple per segment)
+          - tuple: inclusive start and end indices.
+
+        start_idx : array
+          - segment start indices
+
+        end_idx : array
+          - segment end indices
+    """
+    break_inds = np.where(b_breaks)[0]
+    # Start: +1 to compensate for lost sample in np.diff
+    start_idx = np.hstack(([0], break_inds + 1))
+    # End: inclusive range (+1 will be required for slicing)
+    end_idx = np.hstack((break_inds, len(b_breaks)))
+    segments = list(zip(start_idx.tolist(), end_idx.tolist()))
+    return segments, start_idx, end_idx
+
+
 def _clock_sync(
     streams,
     handle_clock_resets=True,

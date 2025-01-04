@@ -4,6 +4,31 @@ from pyxdf.pyxdf import _detect_clock_resets
 
 from mock_data_stream import MockStreamData
 
+# Test error condition
+
+
+@pytest.mark.parametrize("n_clock_offsets", [0, 1])
+def test_detect_resets_length_error(n_clock_offsets):
+    clock_times = list(range(0, n_clock_offsets))
+    clock_values = [0] * n_clock_offsets
+    stream = MockStreamData(
+        clock_times=clock_times,
+        clock_values=clock_values,
+    )
+    time_thresh_stds = 5
+    time_thresh_secs = 5
+    value_thresh_stds = 10
+    value_thresh_secs = 1
+    with pytest.raises(ValueError):
+        _detect_clock_resets(
+            stream,
+            time_thresh_stds,
+            time_thresh_secs,
+            value_thresh_stds,
+            value_thresh_secs,
+        )
+
+
 # No clock resets
 
 

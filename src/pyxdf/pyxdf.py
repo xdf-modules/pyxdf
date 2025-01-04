@@ -573,6 +573,9 @@ def _detect_clock_resets(
     # hot-swapped during an ongoing recording, or the clock was reset
     # otherwise.
 
+    if len(stream.clock_times) <= 1:
+        raise ValueError("Two or more clock offsets are required for reset detection")
+
     clock_times = stream.clock_times
     clock_values = stream.clock_values
     time_diff = np.diff(clock_times)

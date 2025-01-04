@@ -596,14 +596,9 @@ def _detect_clock_resets(
     value_glitch = cond1 | (cond2 & cond3)
     resets_at = time_glitch & value_glitch
 
-    # Determine the [start,end] index ranges between resets
-    if not any(resets_at):
-        ranges = [(0, len(clock_times) - 1)]
-    else:
-        indices = np.where(resets_at)[0]
-        indices = np.hstack((0, indices + 1, indices, len(resets_at)))
-        ranges = np.reshape(indices, (2, -1)).T
-    return ranges
+    # Determine segments: [start,end] index ranges between resets (inclusive)
+    segments = _find_segment_indices(resets_at)[0]
+    return segments
 
 
 def _clock_sync(

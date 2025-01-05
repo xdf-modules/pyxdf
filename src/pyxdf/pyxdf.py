@@ -560,6 +560,20 @@ def _find_segment_indices(b_breaks):
     return segments, start_idx, end_idx
 
 
+def _segment_clock_diff(diff, thresh_stds, thresh_secs):
+    median = np.median(diff)
+    diffs_shift = diff - median
+    diffs_shift_abs = np.abs(diffs_shift)
+    # Median absolute deviation
+    mad = np.median(diffs_shift_abs) + np.finfo(float).eps
+    # MAD-standardised distribution
+    diffs_std = diffs_shift / mad
+    cond1 = np.abs(diffs_std) > thresh_stds
+    cond2 = diffs_shift_abs > thresh_secs
+    b_break = cond1 & cond2
+    return b_break
+
+
 def _detect_clock_resets(
     stream,
     time_thresh_stds,
@@ -576,28 +590,26 @@ def _detect_clock_resets(
     if len(stream.clock_times) <= 1:
         raise ValueError("Two or more clock offsets are required for reset detection")
 
-    clock_times = stream.clock_times
-    clock_values = stream.clock_values
-    time_diff = np.diff(clock_times)
-    value_diff = np.abs(np.diff(clock_values))
-    median_ival = np.median(time_diff)
-    median_slope = np.median(value_diff)
+    time_diff = np.diff(stream.clock_times)
+    value_diff = np.diff(stream.clock_values)
 
-    # Points where a glitch in the timing of successive clock measurements
-    # happened
-    mad = np.median(np.abs(time_diff - median_ival)) + np.finfo(float).eps
-    cond1 = time_diff < 0
-    cond2 = (time_diff - median_ival) / mad > time_thresh_stds
-    cond3 = time_diff - median_ival > time_thresh_secs
-    time_glitch = cond1 | (cond2 & cond3)
+    # Always segment at negative time intervals
+    decreasing = time_diff < 0
 
-    # Points where a glitch in successive clock value estimates happened
-    mad = np.median(np.abs(value_diff - median_slope)) + np.finfo(float).eps
-    cond1 = value_diff < 0
-    cond2 = (value_diff - median_slope) / mad > value_thresh_stds
-    cond3 = value_diff - median_slope > value_thresh_secs
-    value_glitch = cond1 | (cond2 & cond3)
-    resets_at = time_glitch & value_glitch
+    # Segment at time glitches
+    time_glitch = _segment_clock_diff(
+        time_diff,
+        time_thresh_stds,
+        time_thresh_secs,
+    )
+
+    # Segment at value glitches
+    value_glitch = _segment_clock_diff(
+        value_diff,
+        value_thresh_stds,
+        value_thresh_secs,
+    )
+    resets_at = decreasing | time_glitch & value_glitch
 
     # Determine segments: [start,end] index ranges between resets (inclusive)
     segments = _find_segment_indices(resets_at)[0]
@@ -636,6 +648,7 @@ def _clock_sync(
             # Otherwise we just assume that there are no clock resets
             else:
                 ranges = [(0, len(clock_times) - 1)]
+            logger.debug(f"  Clock reset ranges: {ranges}")
 
             # Calculate clock offset mappings for each data range
             coef = []

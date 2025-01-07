@@ -3,7 +3,6 @@
 - Expose detected segment (used in dejittering) as `stream["info"]["segments"]` ([#117](https://github.com/xdf-modules/pyxdf/pull/117) by [Robert Guggenberger](https://github.com/agricolab))
 - A non-looping playback of an XDF file will no longer lead to a `TypeError` ([#119](https://github.com/xdf-modules/pyxdf/pull/119) by [Stefan Appelhoff](https://github.com/sappelhoff))
 - Reported segments now have the correct sample stop, are no longer duplicated, and empty streams return segments as an empty array rather than [0, -1] ([#121](https://github.com/xdf-modules/pyxdf/pull/121) by [Jamie Forth](https://github.com/jamieforth))
-- Test unduplicated reporting for segments ([#123](https://github.com/xdf-modules/pyxdf/pull/123/) by [Robert Guggenberger](https://github.com/agricolab), [Clemens Brunner](https://github.com/cbrnr))
 
 ### Changed
 - Rename `pyxdf.examples` module to `pyxdf.cli` ([#118](https://github.com/xdf-modules/xdf-Python/pull/118) by [Clemens Brunner](https://github.com/cbrnr))

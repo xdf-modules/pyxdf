@@ -1,4 +1,4 @@
-## [UNRELEASED] - YYYY-MM-DD
+## [1.17.0] - 2025-01-07
 ### Fixed
 - Expose detected segment (used in dejittering) as `stream["info"]["segments"]` ([#117](https://github.com/xdf-modules/pyxdf/pull/117) by [Robert Guggenberger](https://github.com/agricolab))
 - A non-looping playback of an XDF file will no longer lead to a `TypeError` ([#119](https://github.com/xdf-modules/pyxdf/pull/119) by [Stefan Appelhoff](https://github.com/sappelhoff))

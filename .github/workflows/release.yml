@@ -19,6 +19,8 @@ jobs:
     needs: style
     name: Build and publish package
     runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
     steps:
     - uses: actions/checkout@v4
     - name: Install uv

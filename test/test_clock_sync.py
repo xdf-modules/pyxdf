@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 import pytest
-from pyxdf.pyxdf import _clock_sync
+from pyxdf.pyxdf import _clock_sync, _sort_stream_data
 
 from mock_data_stream import MockStreamData
 
@@ -571,3 +571,162 @@ def test_sync_clock_jumps_forward_backward_tdiffs(clock_offsets, tdiff, clock_td
     np.testing.assert_equal(streams[1].clock_times, clock_times)
     np.testing.assert_equal(streams[1].clock_values, clock_values)
     np.testing.assert_equal(streams[1].clock_segments, expected_clock_segments)
+
+
+# Non-monotonic time-stamps within clock regions.
+
+
+@pytest.mark.parametrize(
+    "handle_non_monotonic, expected",
+    [
+        (False, [0, 2, 1, 3, 4] + [5, 6, 8, 7, 9]),
+        (True, [0, 1, 2, 3, 4] + [5, 6, 7, 8, 9]),
+    ],
+)
+def test_sync_clock_jumps_forward_break_at_reset_non_monotonic(
+    handle_non_monotonic,
+    expected,
+):
+    # Non-monotonic time-stamps within clock regions.
+    time_stamps = [1, 3, 2, 4, 5] + [17, 18, 20, 19, 21]
+    clock_times = [1, 6, 17, 22]
+    clock_values = [-1, -1, -12, -12]
+    streams = {
+        1: MockStreamData(
+            time_stamps=time_stamps,
+            clock_times=clock_times,
+            clock_values=clock_values,
+        )
+    }
+    _clock_sync(streams)
+    if handle_non_monotonic:
+        _sort_stream_data(1, streams[1])
+    np.testing.assert_allclose(
+        streams[1].time_stamps,
+        expected,
+        atol=1e-13,
+    )
+    np.testing.assert_equal(
+        streams[1].clock_segments,
+        [
+            (0, 4),
+            (5, 9),
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    "handle_non_monotonic, expected",
+    [
+        (False, [3, 4, 5, 6, 7, 8, 10, 9] + [10, 9, 11, 12, 13, 14, 15, 16]),
+        (True, [3, 4, 5, 6, 7, 8, 9, 10] + [9, 10, 11, 12, 13, 14, 15, 16]),
+    ],
+)
+def test_sync_clock_jumps_forward_break_between_reset_non_monotonic(
+    handle_non_monotonic,
+    expected,
+):
+    # Non-monotonic time-stamps between clock regions.
+    time_stamps = [4, 5, 6, 7, 8, 9, 11, 10] + [13, 12, 14, 15, 16, 17, 18, 19]
+    clock_times = [1, 6, 17, 22]
+    clock_values = [-1, -1, -3, -3]
+    streams = {
+        1: MockStreamData(
+            time_stamps=time_stamps,
+            clock_times=clock_times,
+            clock_values=clock_values,
+        )
+    }
+    _clock_sync(streams)
+    if handle_non_monotonic:
+        _sort_stream_data(1, streams[1])
+    np.testing.assert_allclose(
+        streams[1].time_stamps,
+        expected,
+        atol=1e-13,
+    )
+    np.testing.assert_equal(
+        streams[1].clock_segments,
+        [
+            (0, 7),
+            (8, 15),
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    "handle_non_monotonic, expected",
+    [
+        (False, [5, 7, 6, 8, 9] + [10, 11, 13, 12, 14]),
+        (True, [5, 6, 7, 8, 9] + [10, 11, 12, 13, 14]),
+    ],
+)
+def test_sync_clock_jumps_backward_break_at_reset_non_monotonic(
+    handle_non_monotonic,
+    expected,
+):
+    # Non-monotonic time-stamps within clock regions.
+    time_stamps = [17, 19, 18, 20, 21] + [1, 2, 4, 3, 5]
+    clock_times = [17, 22, 1, 6]
+    clock_values = [-12, -12, 9, 9]
+    streams = {
+        1: MockStreamData(
+            time_stamps=time_stamps,
+            clock_times=clock_times,
+            clock_values=clock_values,
+        )
+    }
+    _clock_sync(streams)
+    if handle_non_monotonic:
+        _sort_stream_data(1, streams[1])
+    np.testing.assert_allclose(
+        streams[1].time_stamps,
+        expected,
+        atol=1e-13,
+    )
+    np.testing.assert_equal(
+        streams[1].clock_segments,
+        [
+            (0, 4),
+            (5, 9),
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    "handle_non_monotonic, expected",
+    [
+        (False, [5, 6, 7, 8, 9, 10, 12, 11] + [11, 10, 12, 13, 14, 15, 16, 17]),
+        (True, [5, 6, 7, 8, 9, 10, 11, 12] + [10, 11, 12, 13, 14, 15, 16, 17]),
+    ],
+)
+def test_sync_clock_jumps_backward_break_between_reset_non_monotonic(
+    handle_non_monotonic,
+    expected,
+):
+    # Non-monotonic time-stamps between clock regions.
+    time_stamps = [17, 18, 19, 20, 21, 22, 24, 23] + [2, 1, 3, 4, 5, 6, 7, 8]
+    clock_times = [17, 22, 1, 6]
+    clock_values = [-12, -12, 9, 9]
+    streams = {
+        1: MockStreamData(
+            time_stamps=time_stamps,
+            clock_times=clock_times,
+            clock_values=clock_values,
+        )
+    }
+    _clock_sync(streams)
+    if handle_non_monotonic:
+        _sort_stream_data(1, streams[1])
+    np.testing.assert_allclose(
+        streams[1].time_stamps,
+        expected,
+        atol=1e-13,
+    )
+    np.testing.assert_equal(
+        streams[1].clock_segments,
+        [
+            (0, 7),
+            (8, 15),
+        ],
+    )

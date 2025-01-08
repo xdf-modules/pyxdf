@@ -173,10 +173,13 @@ def test_minimal_file_segments(jitter_break_threshold_seconds):
             assert stream["info"]["effective_srate"] == pytest.approx(0)
 
 
+@pytest.mark.parametrize("handle_non_monotonic", [None, False, True])
 @pytest.mark.parametrize("dejitter_timestamps", [False, True])
 @pytest.mark.parametrize("synchronize_clocks", [False, True])
 @pytest.mark.skipif("empty_streams" not in files, reason="File not found.")
-def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
+def test_empty_streams_file(
+    synchronize_clocks, dejitter_timestamps, handle_non_monotonic
+):
     path = files["empty_streams"]
     streams, header = load_xdf(
         path,

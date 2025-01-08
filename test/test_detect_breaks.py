@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from pyxdf.pyxdf import _detect_breaks
+from pyxdf.pyxdf import _detect_breaks, _sort_stream_data
 
 from mock_data_stream import MockStreamData
 
@@ -139,3 +139,65 @@ def test_detect_breaks_non_monotonic_gap_in_positive():
     b_breaks = _detect_breaks(stream, threshold_seconds=0.1, threshold_samples=0)
     breaks = np.where(b_breaks)[0]
     assert breaks.size == len(time_stamps) - 1
+
+
+# Sorted non-monotonic timeseries data - segment at time-intervals
+# between ascending-order time_stamps (intervals are always ≥ 0).
+
+
+def test_detect_breaks_reverse_sorted():
+    time_stamps = list(reversed(range(-5, 5)))
+    stream = MockStreamData(time_stamps=time_stamps, tdiff=1)
+    stream = _sort_stream_data(stream)
+    # Timeseries should now also be sorted.
+    np.testing.assert_array_equal(stream.time_series[:, 0], sorted(time_stamps))
+    # if diff > 1 -> 0
+    b_breaks = _detect_breaks(stream, threshold_seconds=1, threshold_samples=0)
+    breaks = np.where(b_breaks)[0]
+    assert breaks.size == 0
+
+
+def test_detect_breaks_non_monotonic_sorted_num():
+    time_stamps = [-4, -5, -3, -2, 0, 0, 1, 2]
+    stream = MockStreamData(time_stamps=time_stamps, tdiff=1)
+    stream = _sort_stream_data(stream)
+    # Timeseries data should now also be sorted.
+    np.testing.assert_array_equal(stream.time_series[:, 0], sorted(time_stamps))
+    # if diff > 1 -> 1
+    b_breaks = _detect_breaks(stream, threshold_seconds=1, threshold_samples=0)
+    breaks = np.where(b_breaks)[0]
+    assert breaks.size == 1
+    assert breaks[0] == 3
+    # if diff > 2 -> 0
+    b_breaks = _detect_breaks(stream, threshold_seconds=2, threshold_samples=0)
+    breaks = np.where(b_breaks)[0]
+    assert breaks.size == 0
+    # if diff > 0.1 -> 6
+    b_breaks = _detect_breaks(stream, threshold_seconds=0.1, threshold_samples=0)
+    breaks = np.where(b_breaks)[0]
+    assert breaks.size == len(time_stamps) - 2
+    assert list(breaks) == [0, 1, 2, 3, 5, 6]
+
+
+def test_detect_breaks_non_monotonic_sorted_str():
+    time_stamps = [-4, -5, -3, -2, 0, 0, 1, 2]
+    stream = MockStreamData(time_stamps=time_stamps, tdiff=1, fmt="string")
+    stream = _sort_stream_data(stream)
+    # Timeseries data should now also be sorted.
+    np.testing.assert_array_equal(
+        stream.time_series, [[str(float(x))] for x in sorted(time_stamps)]
+    )
+    # if diff > 1 -> 1
+    b_breaks = _detect_breaks(stream, threshold_seconds=1, threshold_samples=0)
+    breaks = np.where(b_breaks)[0]
+    assert breaks.size == 1
+    assert breaks[0] == 3
+    # if diff > 2 -> 0
+    b_breaks = _detect_breaks(stream, threshold_seconds=2, threshold_samples=0)
+    breaks = np.where(b_breaks)[0]
+    assert breaks.size == 0
+    # if diff > 0.1 -> 6
+    b_breaks = _detect_breaks(stream, threshold_seconds=0.1, threshold_samples=0)
+    breaks = np.where(b_breaks)[0]
+    assert breaks.size == len(time_stamps) - 2
+    assert list(breaks) == [0, 1, 2, 3, 5, 6]

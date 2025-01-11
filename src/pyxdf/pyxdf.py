@@ -657,7 +657,7 @@ def _clock_sync(
                     start, stop = range_i[0], range_i[1] + 1
                     X = np.column_stack(
                         [
-                            np.ones((stop - start,)),
+                            np.ones(stop - start),
                             np.array(clock_times[start:stop]) / winsor_threshold,
                         ]
                     )
@@ -669,14 +669,38 @@ def _clock_sync(
                 else:
                     coef.append((clock_values[range_i[0]], 0))
 
-            # Apply the correction to all time stamps
+            # Apply the correction to all time-stamps
             if len(ranges) == 1:
                 stream.time_stamps += coef[0][0] + (coef[0][1] * stream.time_stamps)
             else:
+                # Assumes time-stamps are monotonically increasing
+                ts_start = 0
                 for coef_i, range_i in zip(coef, ranges):
-                    r = slice(range_i[0], range_i[1])
-                    stream.time_stamps[r] += (
-                        coef_i[0] + coef_i[1] * stream.time_stamps[r]
+                    stop = range_i[1] + 1
+                    if stop < len(clock_times):
+                        # Break at the first time-stamp that is closer to the next
+                        # clock-time than the end of the current clock segment
+                        current_end_t = clock_times[range_i[1]]
+                        next_start_t = clock_times[stop]
+                        ts_stop = ts_start + (
+                            np.argmin(
+                                np.less(
+                                    np.abs(
+                                        stream.time_stamps[ts_start:] - current_end_t
+                                    ),
+                                    np.abs(
+                                        stream.time_stamps[ts_start:] - next_start_t
+                                    ),
+                                )
+                            ).item()
+                        )
+                    else:
+                        # Include all time-stamps from the last break until the end
+                        ts_stop = len(stream.time_stamps)
+                    ts_slice = slice(ts_start, ts_stop)
+                    ts_start = ts_stop
+                    stream.time_stamps[ts_slice] += (
+                        coef_i[0] + coef_i[1] * stream.time_stamps[ts_slice]
                     )
     return streams
 

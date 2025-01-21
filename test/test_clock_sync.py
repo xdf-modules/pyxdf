@@ -31,6 +31,7 @@ def test_sync_empty_stream(n_clock_offsets, handle_clock_resets):
     np.testing.assert_equal(streams[1].time_series[:, 0], time_stamps)
     np.testing.assert_equal(streams[1].clock_times, clock_times)
     np.testing.assert_equal(streams[1].clock_values, clock_values)
+    np.testing.assert_equal(streams[1].clock_segments, [])
 
 
 @pytest.mark.parametrize("n_time_stamps", list(range(0, 5)))
@@ -55,6 +56,7 @@ def test_sync_empty_offsets(n_time_stamps, handle_clock_resets):
     np.testing.assert_equal(streams[1].time_series[:, 0], time_stamps)
     np.testing.assert_equal(streams[1].clock_times, clock_times)
     np.testing.assert_equal(streams[1].clock_values, clock_values)
+    np.testing.assert_equal(streams[1].clock_segments, [])
 
 
 @pytest.mark.parametrize("n_clock_offsets", list(range(2, 5)))
@@ -87,6 +89,7 @@ def test_sync_no_resets(n_clock_offsets, clock_value, handle_clock_resets):
     np.testing.assert_equal(streams[1].time_series[:, 0], time_stamps)
     np.testing.assert_equal(streams[1].clock_times, clock_times)
     np.testing.assert_equal(streams[1].clock_values, clock_values)
+    np.testing.assert_equal(streams[1].clock_segments, [(0, len(time_stamps) - 1)])
 
 
 @pytest.mark.parametrize("n_clock_offsets", list(range(2, 4)))
@@ -119,6 +122,7 @@ def test_sync_no_resets_bounds(n_clock_offsets, clock_value, handle_clock_resets
     np.testing.assert_equal(streams[1].time_series[:, 0], time_stamps)
     np.testing.assert_equal(streams[1].clock_times, clock_times)
     np.testing.assert_equal(streams[1].clock_values, clock_values)
+    np.testing.assert_equal(streams[1].clock_segments, [(0, len(time_stamps) - 1)])
 
 
 @pytest.mark.parametrize("n_clock_offsets", list(range(2, 4)))
@@ -165,6 +169,7 @@ def test_sync_no_resets_bounds_jitter(
     np.testing.assert_equal(streams[1].time_series[:, 0], time_stamps)
     np.testing.assert_equal(streams[1].clock_times, clock_times)
     np.testing.assert_equal(streams[1].clock_values, clock_values)
+    np.testing.assert_equal(streams[1].clock_segments, [(0, len(time_stamps) - 1)])
 
 
 # Clock resets
@@ -191,6 +196,13 @@ def test_sync_clock_jumps_forward_break_at_reset():
         expected,
         atol=1e-13,
     )
+    np.testing.assert_equal(
+        streams[1].clock_segments,
+        [
+            (0, 4),
+            (5, 9),
+        ],
+    )
 
 
 def test_sync_clock_jumps_forward_break_between_reset():
@@ -213,6 +225,13 @@ def test_sync_clock_jumps_forward_break_between_reset():
         streams[1].time_stamps,
         expected,
         atol=1e-13,
+    )
+    np.testing.assert_equal(
+        streams[1].clock_segments,
+        [
+            (0, 7),
+            (8, 15),
+        ],
     )
 
 
@@ -237,6 +256,13 @@ def test_sync_clock_jumps_backward_break_at_reset():
         expected,
         atol=1e-13,
     )
+    np.testing.assert_equal(
+        streams[1].clock_segments,
+        [
+            (0, 4),
+            (5, 9),
+        ],
+    )
 
 
 def test_sync_clock_jumps_backward_break_between_reset():
@@ -259,6 +285,13 @@ def test_sync_clock_jumps_backward_break_between_reset():
         streams[1].time_stamps,
         expected,
         atol=1e-13,
+    )
+    np.testing.assert_equal(
+        streams[1].clock_segments,
+        [
+            (0, 7),
+            (8, 15),
+        ],
     )
 
 
@@ -296,9 +329,16 @@ def test_sync_clock_jumps_forward_tdiffs(clock_offsets, tdiff, clock_tdiff):
     time_stamps = np.hstack(
         [np.arange(start, stop, tdiff) for start, stop in clock_reset_times]
     )
-    expected = np.hstack(
-        [np.arange(0, clock_tdiff * offsets, tdiff) for offsets in offsets_per_range]
-    )
+    expected = [
+        np.arange(0, clock_tdiff * offsets, tdiff) for offsets in offsets_per_range
+    ]
+    expected_clock_segments = []
+    seg_start_idx = 0
+    for segment in expected:
+        seg_end_idx = seg_start_idx + len(segment) - 1
+        expected_clock_segments.append((seg_start_idx, seg_end_idx))
+        seg_start_idx = seg_end_idx + 1
+    expected = np.hstack(expected)
     streams = {
         1: MockStreamData(
             time_stamps=time_stamps,
@@ -318,6 +358,7 @@ def test_sync_clock_jumps_forward_tdiffs(clock_offsets, tdiff, clock_tdiff):
     np.testing.assert_equal(streams[1].time_series[:, 0], time_stamps)
     np.testing.assert_equal(streams[1].clock_times, clock_times)
     np.testing.assert_equal(streams[1].clock_values, clock_values)
+    np.testing.assert_equal(streams[1].clock_segments, expected_clock_segments)
 
 
 @pytest.mark.parametrize(
@@ -354,9 +395,16 @@ def test_sync_clock_jumps_backward_tdiffs(clock_offsets, tdiff, clock_tdiff):
     time_stamps = np.hstack(
         [np.arange(start, stop, tdiff) for start, stop in clock_reset_times]
     )
-    expected = np.hstack(
-        [np.arange(0, clock_tdiff * offsets, tdiff) for offsets in offsets_per_range]
-    )
+    expected = [
+        np.arange(0, clock_tdiff * offsets, tdiff) for offsets in offsets_per_range
+    ]
+    expected_clock_segments = []
+    seg_start_idx = 0
+    for segment in expected:
+        seg_end_idx = seg_start_idx + len(segment) - 1
+        expected_clock_segments.append((seg_start_idx, seg_end_idx))
+        seg_start_idx = seg_end_idx + 1
+    expected = np.hstack(expected)
     streams = {
         1: MockStreamData(
             time_stamps=time_stamps,
@@ -375,6 +423,7 @@ def test_sync_clock_jumps_backward_tdiffs(clock_offsets, tdiff, clock_tdiff):
     np.testing.assert_equal(streams[1].time_series[:, 0], time_stamps)
     np.testing.assert_equal(streams[1].clock_times, clock_times)
     np.testing.assert_equal(streams[1].clock_values, clock_values)
+    np.testing.assert_equal(streams[1].clock_segments, expected_clock_segments)
 
 
 @pytest.mark.parametrize(
@@ -411,9 +460,16 @@ def test_sync_clock_jumps_forward_backward_tdiffs(clock_offsets, tdiff, clock_td
     time_stamps = np.hstack(
         [np.arange(start, stop, tdiff) for start, stop in clock_reset_times]
     )
-    expected = np.hstack(
-        [np.arange(0, clock_tdiff * offsets, tdiff) for offsets in offsets_per_range]
-    )
+    expected = [
+        np.arange(0, clock_tdiff * offsets, tdiff) for offsets in offsets_per_range
+    ]
+    expected_clock_segments = []
+    seg_start_idx = 0
+    for segment in expected:
+        seg_end_idx = seg_start_idx + len(segment) - 1
+        expected_clock_segments.append((seg_start_idx, seg_end_idx))
+        seg_start_idx = seg_end_idx + 1
+    expected = np.hstack(expected)
     streams = {
         1: MockStreamData(
             time_stamps=time_stamps,
@@ -433,3 +489,4 @@ def test_sync_clock_jumps_forward_backward_tdiffs(clock_offsets, tdiff, clock_td
     np.testing.assert_equal(streams[1].time_series[:, 0], time_stamps)
     np.testing.assert_equal(streams[1].clock_times, clock_times)
     np.testing.assert_equal(streams[1].clock_values, clock_values)
+    np.testing.assert_equal(streams[1].clock_segments, expected_clock_segments)

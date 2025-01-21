@@ -62,6 +62,9 @@ class StreamData:
         # list of segments corresponding to detected time-stamp breaks
         # (each a tuple of start_idx, end_idx)
         self.segments = []
+        # list of segments corresponding to detected clock resets (each
+        # a tuple of start_idx, end_idx)
+        self.clock_segments = []
         # pre-calc some parsing parameters for efficiency
         if self.fmt != "string":
             self.dtype = np.dtype(fmts[self.fmt])
@@ -393,9 +396,13 @@ def load_xdf(
                 "Using the 'stream_id' value {} from the beginning of the StreamHeader "
                 "chunk instead.".format(stream["info"]["stream_id"], k)
             )
+        if synchronize_clocks:
+            if tmp.segments != tmp.clock_segments:
+                logger.warning(f"Stream {k}: Segments and clock-segments differ")
         stream["info"]["stream_id"] = k
         stream["info"]["effective_srate"] = tmp.effective_srate
         stream["info"]["segments"] = tmp.segments
+        stream["info"]["clock_segments"] = tmp.clock_segments
         stream["time_series"] = tmp.time_series
         stream["time_stamps"] = tmp.time_stamps
         stream["clock_times"] = tmp.clock_times
@@ -672,6 +679,9 @@ def _clock_sync(
             # Apply the correction to all time-stamps
             if len(ranges) == 1:
                 stream.time_stamps += coef[0][0] + (coef[0][1] * stream.time_stamps)
+                stream.clock_segments.append(
+                    (0, len(stream.time_stamps) - 1)  # inclusive
+                )
             else:
                 # Assumes time-stamps are monotonically increasing
                 ts_start = 0
@@ -697,6 +707,7 @@ def _clock_sync(
                     else:
                         # Include all time-stamps from the last break until the end
                         ts_stop = len(stream.time_stamps)
+                    stream.clock_segments.append((ts_start, ts_stop - 1))
                     ts_slice = slice(ts_start, ts_stop)
                     ts_start = ts_stop
                     stream.time_stamps[ts_slice] += (

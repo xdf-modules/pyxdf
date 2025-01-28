@@ -20,11 +20,15 @@ def test_load_file(file):
     streams, header = load_xdf(file)
 
 
-def test_minimal_file():
-    path = Path("example-files/minimal.xdf")
-    if not path.exists():
-        pytest.skip(f"File not available: {path}.")
+@pytest.fixture()
+def skip_if_file_not_found(path):
+    if not Path(path).exists():
+        pytest.skip("File not found")
 
+
+@pytest.mark.parametrize("path", ["example-files/minimal.xdf"])
+@pytest.mark.usefixtures("skip_if_file_not_found")
+def test_minimal_file(path):
     streams, header = load_xdf(path)
 
     assert header["info"]["version"][0] == "1.0"
@@ -98,17 +102,17 @@ def test_minimal_file():
     np.testing.assert_array_almost_equal(streams[1]["clock_values"], clock_values)
 
     streams, header = load_xdf(
-        path, jitter_break_threshold_seconds=0.001, jitter_break_threshold_samples=1
+        path,
+        jitter_break_threshold_seconds=0.001,
+        jitter_break_threshold_samples=1,
     )
     assert streams[0]["info"]["segments"] == [(0, 0), (1, 3), (4, 8)]
 
 
 @pytest.mark.parametrize("dejitter_timestamps", [False, True])
-def test_empty_streams_file(dejitter_timestamps):
-    path = Path("example-files/data_with_empty_streams.xdf")
-    if not path.exists():
-        pytest.skip(f"File not available: {path}.")
-
+@pytest.mark.parametrize("path", ["example-files/data_with_empty_streams.xdf"])
+@pytest.mark.usefixtures("skip_if_file_not_found")
+def test_empty_streams_file(path, dejitter_timestamps):
     streams, header = load_xdf(
         path,
         synchronize_clocks=False,

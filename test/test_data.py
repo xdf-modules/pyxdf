@@ -8,27 +8,20 @@ from pyxdf import load_xdf
 # requires git clone https://github.com/xdf-modules/example-files.git
 # into the root pyxdf folder
 path = Path("example-files")
-extensions = ["*.xdf", "*.xdfz", "*.xdf.gz"]
-files = []
-for ext in extensions:
-    files.extend(path.glob(ext))
-files = [str(file) for file in files]
+files = {
+    key: path / value
+    for key, value in {
+        "minimal": "minimal.xdf",
+        "clock_resets": "data_with_clock_resets.xdf",
+        "empty_streams": "data_with_empty_streams.xdf",
+    }.items()
+    if (path / value).exists()
+}
 
 
-@pytest.mark.parametrize("file", files)
-def test_load_file(file):
-    streams, header = load_xdf(file)
-
-
-@pytest.fixture()
-def skip_if_file_not_found(path):
-    if not Path(path).exists():
-        pytest.skip("File not found")
-
-
-@pytest.mark.parametrize("path", ["example-files/minimal.xdf"])
-@pytest.mark.usefixtures("skip_if_file_not_found")
-def test_minimal_file(path):
+@pytest.mark.skipif("minimal" not in files, reason="File not found.")
+def test_minimal_file():
+    path = files["minimal"]
     streams, header = load_xdf(path)
 
     assert header["info"]["version"][0] == "1.0"
@@ -110,9 +103,8 @@ def test_minimal_file(path):
 
 
 @pytest.mark.parametrize("dejitter_timestamps", [False, True])
-@pytest.mark.parametrize("path", ["example-files/data_with_empty_streams.xdf"])
-@pytest.mark.usefixtures("skip_if_file_not_found")
-def test_empty_streams_file(path, dejitter_timestamps):
+def test_empty_streams_file(dejitter_timestamps):
+    path = files["empty_streams"]
     streams, header = load_xdf(
         path,
         synchronize_clocks=False,

@@ -378,7 +378,7 @@ def load_xdf(
         for stream in temp.values():
             if len(stream.time_stamps) > 1:
                 duration = stream.time_stamps[-1] - stream.time_stamps[0]
-                stream.effective_srate = len(stream.time_stamps) / duration
+                stream.effective_srate = (len(stream.time_stamps) - 1) / duration
             else:
                 stream.effective_srate = 0.0
             # initialize segment list in case jitter_removal was not selected

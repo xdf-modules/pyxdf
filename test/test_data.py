@@ -12,8 +12,8 @@ files = {
     key: path / value
     for key, value in {
         "minimal": "minimal.xdf",
-        "clock_resets": "data_with_clock_resets.xdf",
-        "empty_streams": "data_with_empty_streams.xdf",
+        "clock_resets": "clock_resets.xdf",
+        "empty_streams": "empty_streams.xdf",
     }.items()
     if (path / value).exists()
 }

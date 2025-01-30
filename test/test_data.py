@@ -155,6 +155,7 @@ def test_minimal_file(synchronize_clocks, dejitter_timestamps):
 
 @pytest.mark.parametrize("dejitter_timestamps", [False, True])
 @pytest.mark.parametrize("synchronize_clocks", [False, True])
+@pytest.mark.skipif("empty_streams" not in files, reason="File not found.")
 def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     path = files["empty_streams"]
     streams, header = load_xdf(

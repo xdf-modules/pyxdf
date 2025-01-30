@@ -5,8 +5,8 @@ import pytest
 
 from pyxdf import load_xdf
 
-# requires git clone https://github.com/xdf-modules/example-files.git
-# into the root pyxdf folder
+# requires git clone https://github.com/xdf-modules/example-files.git into the root
+# pyxdf folder
 path = Path("example-files")
 files = {
     key: path / value
@@ -44,7 +44,7 @@ def test_minimal_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["desc"][0] is None
     assert streams[i]["info"]["uid"][0] == "xdfwriter_11_int"
 
-    # Info added by pyxdf.
+    # Info added by pyxdf
     assert streams[i]["info"]["stream_id"] == 0
     assert streams[i]["info"]["effective_srate"] == pytest.approx(10)
     assert streams[i]["info"]["segments"] == [(0, 8)]
@@ -73,8 +73,7 @@ def test_minimal_file(synchronize_clocks, dejitter_timestamps):
         dtype=np.int16,
     )
     t = np.array([5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9])
-    if synchronize_clocks:
-        # Shift time according to clock offsets.
+    if synchronize_clocks:  # shift time according to clock offsets
         t = t - 0.1
     np.testing.assert_equal(streams[i]["time_series"], s)
     np.testing.assert_allclose(streams[i]["time_stamps"], t)
@@ -97,7 +96,7 @@ def test_minimal_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["desc"][0] is None
     assert streams[i]["info"]["uid"][0] == "xdfwriter_11_str"
 
-    # Info added by pyxdf.
+    # Info added by pyxdf
     assert streams[i]["info"]["stream_id"] == 0x02C0FFEE
     assert streams[i]["info"]["effective_srate"] == pytest.approx(10)
     assert streams[i]["info"]["segments"] == [(0, 8)]
@@ -133,7 +132,7 @@ def test_minimal_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["time_series"] == s
     np.testing.assert_allclose(streams[i]["time_stamps"], t)
 
-    # Clock offsets - does not match the footer but it is in the file.
+    # Clock offsets - does not match the footer but it is in the file
     clock_times = np.asarray([])
     clock_values = np.asarray([])
 
@@ -192,7 +191,7 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert channels["channel"][0]["label"][0] == "ch:00"
     assert channels["channel"][0]["type"][0] == "misc"
 
-    # Info added by pyxdf.
+    # Info added by pyxdf
     assert streams[i]["info"]["stream_id"] == 1
     assert streams[i]["info"]["effective_srate"] == pytest.approx(1)
     assert streams[i]["info"]["segments"] == [(0, 9)]
@@ -200,7 +199,7 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     # Footer
     assert streams[i]["footer"]["info"]["first_timestamp"][0] == "401340.7970979316"
     assert streams[i]["footer"]["info"]["last_timestamp"][0] == "401350.7970979316"
-    # Sample count is off by one.
+    # Sample count is off by one
     assert streams[i]["footer"]["info"]["sample_count"][0] == "9"
     first_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][0]
     assert first_clock_offset["time"][0] == "401322.6950535755"
@@ -259,7 +258,7 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert channels["channel"][0]["label"][0] == "ch:00"
     assert channels["channel"][0]["type"][0] == "misc"
 
-    # Info added by pyxdf.
+    # Info added by pyxdf
     assert streams[i]["info"]["stream_id"] == 2
     assert streams[i]["info"]["effective_srate"] == 0
     assert streams[i]["info"]["segments"] == []
@@ -312,7 +311,7 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["v6service_port"][0] == "0"
     assert streams[i]["info"]["desc"][0]["manufacturer"][0] == "pylsltools"
 
-    # Info added by pyxdf.
+    # Info added by pyxdf
     assert streams[i]["info"]["stream_id"] == 3
     assert streams[i]["info"]["effective_srate"] == 0
     assert streams[i]["info"]["segments"] == []
@@ -363,7 +362,7 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["v6service_port"][0] == "0"
     assert streams[i]["info"]["desc"][0]["manufacturer"][0] == "pylsltools"
 
-    # Info added by pyxdf.
+    # Info added by pyxdf
     assert streams[i]["info"]["stream_id"] == 4
     assert streams[i]["info"]["effective_srate"] == 0
     assert streams[i]["info"]["segments"] == [(0, 0)]

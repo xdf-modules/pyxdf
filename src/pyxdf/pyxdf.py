@@ -633,7 +633,7 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
         nsamples = len(stream.time_stamps)
         if nsamples > 0:
             if stream.srate == 0:
-                # Initialise default segment for irregular sampling rate streams.
+                # Initialise default segment for irregular sampling rate streams
                 stream.segments.append((0, nsamples - 1))  # inclusive
                 continue
 

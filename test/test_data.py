@@ -73,7 +73,10 @@ def test_minimal_file(synchronize_clocks, dejitter_timestamps):
         dtype=np.int16,
     )
     t = np.array([5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9])
-    if synchronize_clocks:  # shift time according to clock offsets
+    if synchronize_clocks:
+        # Shift time according to clock offsets: time-stamps earlier
+        # than the first clock-offset measurement are considered part of
+        # the first clock segment
         t = t - 0.1
     np.testing.assert_equal(streams[i]["time_series"], s)
     np.testing.assert_allclose(streams[i]["time_stamps"], t)
@@ -384,7 +387,8 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     else:
         np.testing.assert_almost_equal(streams[i]["time_stamps"], t, decimal=8)
 
-    # Dejittering should have no effect because timestamps have minimal jitter.
+    # Dejittering should have negligible effect because ground-truth
+    # timestamps have zero jitter
     assert np.std(np.diff(streams[i]["time_stamps"])) < 6e-11
 
     # Clock offsets

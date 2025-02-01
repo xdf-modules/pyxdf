@@ -213,11 +213,19 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["time_series"] == s
     np.testing.assert_allclose(streams[i]["time_stamps"], t)
 
-    # Clock offsets
-    assert streams[i]["clock_times"][0] == pytest.approx(91716.691545932, abs=1e-6)
-    assert streams[i]["clock_values"][0] == pytest.approx(0, abs=1e-4)
-    assert streams[i]["clock_times"][-1] == pytest.approx(91746.69261952251, abs=1e-6)
-    assert streams[i]["clock_values"][-1] == pytest.approx(0, abs=1e-4)
+    # Clock offsets: Test against footer
+    assert streams[i]["clock_times"][0] == pytest.approx(
+        float(first_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][0] == pytest.approx(
+        float(first_clock_offset["value"][0]), abs=1e-4
+    )
+    assert streams[i]["clock_times"][-1] == pytest.approx(
+        float(last_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][-1] == pytest.approx(
+        float(last_clock_offset["value"][0]), abs=1e-4
+    )
 
     # Stream ID: 2
     i = 3
@@ -263,11 +271,19 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     np.testing.assert_equal(streams[i]["time_series"], s)
     np.testing.assert_equal(streams[i]["time_stamps"], t)
 
-    # Clock offsets
-    assert streams[i]["clock_times"][0] == pytest.approx(91716.691513728, abs=1e-6)
-    assert streams[i]["clock_values"][0] == pytest.approx(0, abs=1e-4)
-    assert streams[i]["clock_times"][-1] == pytest.approx(91746.692766492, abs=1e-6)
-    assert streams[i]["clock_values"][-1] == pytest.approx(0, abs=1e-4)
+    # Clock offsets: Test against footer
+    assert streams[i]["clock_times"][0] == pytest.approx(
+        float(first_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][0] == pytest.approx(
+        float(first_clock_offset["value"][0]), abs=1e-4
+    )
+    assert streams[i]["clock_times"][-1] == pytest.approx(
+        float(last_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][-1] == pytest.approx(
+        float(last_clock_offset["value"][0]), abs=1e-4
+    )
 
     # Stream ID: 3
     i = 0
@@ -316,11 +332,19 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     np.testing.assert_equal(streams[i]["time_series"], s)
     np.testing.assert_equal(streams[i]["time_stamps"], t)
 
-    # Clock offsets
-    assert streams[i]["clock_times"][0] == pytest.approx(91716.6915301265, abs=1e-6)
-    assert streams[i]["clock_values"][0] == pytest.approx(0, abs=1e-4)
-    assert streams[i]["clock_times"][-1] == pytest.approx(91746.69269425601, abs=1e-6)
-    assert streams[i]["clock_values"][-1] == pytest.approx(0, abs=1e-4)
+    # Clock offsets: Test against footer
+    assert streams[i]["clock_times"][0] == pytest.approx(
+        float(first_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][0] == pytest.approx(
+        float(first_clock_offset["value"][0]), abs=1e-4
+    )
+    assert streams[i]["clock_times"][-1] == pytest.approx(
+        float(last_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][-1] == pytest.approx(
+        float(last_clock_offset["value"][0]), abs=1e-4
+    )
 
     # Stream ID: 4
     i = 1
@@ -389,8 +413,16 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     # timestamps have zero jitter
     assert np.std(np.diff(streams[i]["time_stamps"])) < 6e-11
 
-    # Clock offsets
-    assert streams[i]["clock_times"][0] == pytest.approx(91716.6915717245, abs=1e-6)
-    assert streams[i]["clock_values"][0] == pytest.approx(0, abs=1e-4)
-    assert streams[i]["clock_times"][-1] == pytest.approx(91746.6927460215, abs=1e-6)
-    assert streams[i]["clock_values"][-1] == pytest.approx(0, abs=1e-4)
+    # Clock offsets: Test against footer
+    assert streams[i]["clock_times"][0] == pytest.approx(
+        float(first_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][0] == pytest.approx(
+        float(first_clock_offset["value"][0]), abs=1e-4
+    )
+    assert streams[i]["clock_times"][-1] == pytest.approx(
+        float(last_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][-1] == pytest.approx(
+        float(last_clock_offset["value"][0]), abs=1e-4
+    )

@@ -19,15 +19,13 @@ files = {
 }
 
 
-@pytest.mark.parametrize("dejitter_timestamps", [False, True])
 @pytest.mark.parametrize("synchronize_clocks", [False, True])
 @pytest.mark.skipif("minimal" not in files, reason="File not found.")
-def test_minimal_file(synchronize_clocks, dejitter_timestamps):
+def test_minimal_file(synchronize_clocks):
     path = files["minimal"]
     streams, header = load_xdf(
         path,
         synchronize_clocks=synchronize_clocks,
-        dejitter_timestamps=dejitter_timestamps,
     )
 
     assert header["info"]["version"][0] == "1.0"
@@ -140,17 +138,36 @@ def test_minimal_file(synchronize_clocks, dejitter_timestamps):
     np.testing.assert_equal(streams[i]["clock_times"], clock_times)
     np.testing.assert_equal(streams[i]["clock_values"], clock_values)
 
+
+@pytest.mark.parametrize("jitter_break_threshold_seconds", [0.11, 0.09])
+@pytest.mark.skipif("minimal" not in files, reason="File not found.")
+def test_minimal_file_segments(jitter_break_threshold_seconds):
+    path = files["minimal"]
     streams, header = load_xdf(
         path,
-        synchronize_clocks=synchronize_clocks,
-        dejitter_timestamps=dejitter_timestamps,
-        jitter_break_threshold_seconds=0.001,
-        jitter_break_threshold_samples=1,
+        dejitter_timestamps=True,
+        jitter_break_threshold_seconds=jitter_break_threshold_seconds,
+        jitter_break_threshold_samples=0,
     )
-    if dejitter_timestamps:
-        assert streams[0]["info"]["segments"] == [(0, 0), (1, 3), (4, 8)]
-    else:
-        assert streams[0]["info"]["segments"] == [(0, 8)]
+    for stream in streams:
+        tdiff = 1 / float(stream["info"]["nominal_srate"][0])
+        if jitter_break_threshold_seconds > tdiff:
+            assert stream["info"]["segments"] == [(0, 8)]
+            assert stream["info"]["effective_srate"] == pytest.approx(10)
+        else:
+            # Pathological case where every sample is a segment
+            assert stream["info"]["segments"] == [
+                (0, 0),
+                (1, 1),
+                (2, 2),
+                (3, 3),
+                (4, 4),
+                (5, 5),
+                (6, 6),
+                (7, 7),
+                (8, 8),
+            ]
+            assert stream["info"]["effective_srate"] == pytest.approx(0)
 
 
 @pytest.mark.parametrize("dejitter_timestamps", [False, True])

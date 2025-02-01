@@ -664,7 +664,7 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
 
             # Recalculate effective_srate if possible
             counts = (seg_stops + 1) - seg_starts
-            if np.any(counts):
+            if np.any(counts > 1):
                 # Calculate range segment duration
                 durations = (
                     stream.time_stamps[seg_stops] - stream.time_stamps[seg_starts]

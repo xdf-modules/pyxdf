@@ -104,13 +104,8 @@ def test_minimal_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["effective_srate"] == pytest.approx(10)
     assert streams[i]["info"]["segments"] == [(0, 8)]
 
-    # Footer
-    assert streams[i]["footer"]["info"]["first_timestamp"][0] == "5.1"
-    assert streams[i]["footer"]["info"]["last_timestamp"][0] == "5.9"
-    assert streams[i]["footer"]["info"]["sample_count"][0] == "9"
-    first_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][0]
-    assert first_clock_offset["time"][0] == "50979.76"
-    assert first_clock_offset["value"][0] == "-.01"
+    # Footer should be identical to Stream 0
+    assert streams[i]["footer"] == streams[0]["footer"]
 
     # Time-series data
     s = [
@@ -132,10 +127,13 @@ def test_minimal_file(synchronize_clocks, dejitter_timestamps):
         ["LSL"],
     ]
     t = np.array([5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9])
+    # Synchronization should have no effect on this stream due to no
+    # clock_offsets
     assert streams[i]["time_series"] == s
     np.testing.assert_allclose(streams[i]["time_stamps"], t)
 
-    # Clock offsets - does not match the footer but it is in the file
+    # Clock offsets: does not match the footer but there are no
+    # clock_offsets for this stream in the file
     clock_times = np.asarray([])
     clock_values = np.asarray([])
 

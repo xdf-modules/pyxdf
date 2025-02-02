@@ -669,11 +669,19 @@ def _clock_sync(
                         ]
                     )
                     y = np.array(clock_values[start:stop]) / winsor_threshold
-                    # noinspection PyTypeChecker
-                    _coefs = _robust_fit(X, y)
-                    _coefs[0] *= winsor_threshold
+                    try:
+                        # noinspection PyTypeChecker
+                        _coefs = _robust_fit(X, y)
+                        _coefs[0] *= winsor_threshold
+                    except np.linalg.LinAlgError:
+                        logger.warning(
+                            f"Stream {stream_id}: "
+                            f"Clock offsets {range_i} cannot be used for synchronization"
+                        )
+                        _coefs = [0, 0]
                     coef.append(_coefs)
                 else:
+                    # Intercept for single sample segments
                     coef.append((clock_values[range_i[0]], 0))
 
             # Apply the correction to all time-stamps
@@ -707,12 +715,20 @@ def _clock_sync(
                     else:
                         # Include all time-stamps from the last break until the end
                         ts_stop = len(stream.time_stamps)
-                    stream.clock_segments.append((ts_start, ts_stop - 1))
-                    ts_slice = slice(ts_start, ts_stop)
-                    ts_start = ts_stop
-                    stream.time_stamps[ts_slice] += (
-                        coef_i[0] + coef_i[1] * stream.time_stamps[ts_slice]
-                    )
+                    if ts_start == ts_stop:
+                        logger.warning(
+                            (
+                                f"Stream {stream_id}: "
+                                f"No samples in clock offsets {range_i}, skipping..."
+                            )
+                        )
+                    else:
+                        stream.clock_segments.append((ts_start, ts_stop - 1))
+                        ts_slice = slice(ts_start, ts_stop)
+                        ts_start = ts_stop
+                        stream.time_stamps[ts_slice] += (
+                            coef_i[0] + coef_i[1] * stream.time_stamps[ts_slice]
+                        )
     return streams
 
 

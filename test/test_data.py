@@ -46,6 +46,9 @@ def test_minimal_file(synchronize_clocks):
     assert streams[i]["info"]["stream_id"] == 0
     assert streams[i]["info"]["effective_srate"] == pytest.approx(10)
     assert streams[i]["info"]["segments"] == [(0, 8)]
+    assert streams[i]["info"]["clock_segments"] == (
+        [(0, 8)] if synchronize_clocks else []
+    )
 
     # Footer
     assert streams[i]["footer"]["info"]["first_timestamp"][0] == "5.1"
@@ -170,10 +173,13 @@ def test_minimal_file_segments(jitter_break_threshold_seconds):
             assert stream["info"]["effective_srate"] == pytest.approx(0)
 
 
+@pytest.mark.parametrize("handle_non_monotonic", [None, False, True])
 @pytest.mark.parametrize("dejitter_timestamps", [False, True])
 @pytest.mark.parametrize("synchronize_clocks", [False, True])
 @pytest.mark.skipif("empty_streams" not in files, reason="File not found.")
-def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
+def test_empty_streams_file(
+    synchronize_clocks, dejitter_timestamps, handle_non_monotonic
+):
     path = files["empty_streams"]
     streams, header = load_xdf(
         path,
@@ -211,6 +217,9 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["stream_id"] == 1
     assert streams[i]["info"]["effective_srate"] == 0
     assert streams[i]["info"]["segments"] == [(0, 0)]
+    assert streams[i]["info"]["clock_segments"] == (
+        [(0, 0)] if synchronize_clocks else []
+    )
 
     # Footer
     assert streams[i]["footer"]["info"]["first_timestamp"][0] == "91725.014004246"
@@ -269,6 +278,7 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["stream_id"] == 2
     assert streams[i]["info"]["effective_srate"] == 0
     assert streams[i]["info"]["segments"] == []
+    assert streams[i]["info"]["clock_segments"] == []
 
     # Footer
     assert streams[i]["footer"]["info"]["first_timestamp"][0] == "0"
@@ -330,6 +340,7 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["stream_id"] == 3
     assert streams[i]["info"]["effective_srate"] == 0
     assert streams[i]["info"]["segments"] == []
+    assert streams[i]["info"]["clock_segments"] == []
 
     # Footer
     assert streams[i]["footer"]["info"]["first_timestamp"][0] == "0"
@@ -391,6 +402,9 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["stream_id"] == 4
     assert streams[i]["info"]["effective_srate"] == pytest.approx(1)
     assert streams[i]["info"]["segments"] == [(0, 9)]
+    assert streams[i]["info"]["clock_segments"] == (
+        [(0, 9)] if synchronize_clocks else []
+    )
 
     # Footer
     assert streams[i]["footer"]["info"]["first_timestamp"][0] == "91725.21394789348"

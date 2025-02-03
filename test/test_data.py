@@ -5,91 +5,441 @@ import pytest
 
 from pyxdf import load_xdf
 
-# requires git clone https://github.com/xdf-modules/example-files.git
-# into the root pyxdf folder
+# requires git clone https://github.com/xdf-modules/example-files.git into the root
+# pyxdf folder
 path = Path("example-files")
-extensions = ["*.xdf", "*.xdfz", "*.xdf.gz"]
-files = []
-for ext in extensions:
-    files.extend(path.glob(ext))
-files = [str(file) for file in files]
+files = {
+    key: path / value
+    for key, value in {
+        "minimal": "minimal.xdf",
+        "clock_resets": "clock_resets.xdf",
+        "empty_streams": "empty_streams.xdf",
+    }.items()
+    if (path / value).exists()
+}
 
 
-@pytest.mark.parametrize("file", files)
-def test_load_file(file):
-    streams, header = load_xdf(file)
+@pytest.mark.parametrize("synchronize_clocks", [False, True])
+@pytest.mark.skipif("minimal" not in files, reason="File not found.")
+def test_minimal_file(synchronize_clocks):
+    path = files["minimal"]
+    streams, header = load_xdf(
+        path,
+        synchronize_clocks=synchronize_clocks,
+    )
 
-    if file.endswith("minimal.xdf"):
-        assert header["info"]["version"][0] == "1.0"
+    assert header["info"]["version"][0] == "1.0"
 
-        assert len(streams) == 2
-        assert streams[0]["info"]["name"][0] == "SendDataC"
-        assert streams[0]["info"]["type"][0] == "EEG"
-        assert streams[0]["info"]["channel_count"][0] == "3"
-        assert streams[0]["info"]["nominal_srate"][0] == "10"
-        assert streams[0]["info"]["channel_format"][0] == "int16"
-        assert streams[0]["info"]["stream_id"] == 0
+    # Stream ID: 0
+    i = 0
+    assert len(streams) == 2
+    assert streams[i]["info"]["name"][0] == "SendDataC"
+    assert streams[i]["info"]["type"][0] == "EEG"
+    assert streams[i]["info"]["channel_count"][0] == "3"
+    assert streams[i]["info"]["nominal_srate"][0] == "10"
+    assert streams[i]["info"]["channel_format"][0] == "int16"
+    assert streams[i]["info"]["created_at"][0] == "50942.723319709003"
+    assert streams[i]["info"]["desc"][0] is None
+    assert streams[i]["info"]["uid"][0] == "xdfwriter_11_int"
 
-        s = np.array(
-            [
-                [192, 255, 238],
-                [12, 22, 32],
-                [13, 23, 33],
-                [14, 24, 34],
-                [15, 25, 35],
-                [12, 22, 32],
-                [13, 23, 33],
-                [14, 24, 34],
-                [15, 25, 35],
-            ],
-            dtype=np.int16,
-        )
-        t = np.array([5.0, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8])
-        np.testing.assert_array_equal(streams[0]["time_series"], s)
-        np.testing.assert_array_almost_equal(streams[0]["time_stamps"], t)
+    # Info added by pyxdf
+    assert streams[i]["info"]["stream_id"] == 0
+    assert streams[i]["info"]["effective_srate"] == pytest.approx(10)
+    assert streams[i]["info"]["segments"] == [(0, 8)]
 
-        clock_times = np.asarray([6.1, 7.1])
-        clock_values = np.asarray([-0.1, -0.1])
+    # Footer
+    assert streams[i]["footer"]["info"]["first_timestamp"][0] == "5.1"
+    assert streams[i]["footer"]["info"]["last_timestamp"][0] == "5.9"
+    assert streams[i]["footer"]["info"]["sample_count"][0] == "9"
+    first_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][0]
+    assert first_clock_offset["time"][0] == "50979.76"
+    assert first_clock_offset["value"][0] == "-.01"
 
-        np.testing.assert_array_equal(streams[0]["clock_times"], clock_times)
-        np.testing.assert_array_almost_equal(streams[0]["clock_values"], clock_values)
+    # Time-series data
+    s = np.array(
+        [
+            [192, 255, 238],
+            [12, 22, 32],
+            [13, 23, 33],
+            [14, 24, 34],
+            [15, 25, 35],
+            [12, 22, 32],
+            [13, 23, 33],
+            [14, 24, 34],
+            [15, 25, 35],
+        ],
+        dtype=np.int16,
+    )
+    t = np.array([5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9])
+    if synchronize_clocks:
+        # Shift time according to clock offsets: time-stamps earlier
+        # than the first clock-offset measurement are considered part of
+        # the first clock segment
+        t = t - 0.1
+    np.testing.assert_equal(streams[i]["time_series"], s)
+    np.testing.assert_allclose(streams[i]["time_stamps"], t)
 
-        assert streams[1]["info"]["name"][0] == "SendDataString"
-        assert streams[1]["info"]["type"][0] == "StringMarker"
-        assert streams[1]["info"]["channel_count"][0] == "1"
-        assert streams[1]["info"]["nominal_srate"][0] == "10"
-        assert streams[1]["info"]["channel_format"][0] == "string"
-        assert streams[1]["info"]["stream_id"] == 0x02C0FFEE
+    # Clock offsets
+    clock_times = np.asarray([6.1, 7.1])
+    clock_values = np.asarray([-0.1, -0.1])
 
-        s = [
-            [
-                '<?xml version="1.0"?><info><writer>LabRecorder xdfwriter'
-                "</writer><first_timestamp>5.1</first_timestamp><last_timestamp>"
-                "5.9</last_timestamp><sample_count>9</sample_count>"
-                "<clock_offsets><offset><time>50979.76</time><value>-.01</value>"
-                "</offset><offset><time>50979.86</time><value>-.02</value>"
-                "</offset></clock_offsets></info>"
-            ],
-            ["Hello"],
-            ["World"],
-            ["from"],
-            ["LSL"],
-            ["Hello"],
-            ["World"],
-            ["from"],
-            ["LSL"],
+    np.testing.assert_equal(streams[i]["clock_times"], clock_times)
+    np.testing.assert_allclose(streams[i]["clock_values"], clock_values)
+
+    # Stream ID: 0x02C0FFEE
+    i = 1
+    assert streams[i]["info"]["name"][0] == "SendDataString"
+    assert streams[i]["info"]["type"][0] == "StringMarker"
+    assert streams[i]["info"]["channel_count"][0] == "1"
+    assert streams[i]["info"]["nominal_srate"][0] == "10"
+    assert streams[i]["info"]["channel_format"][0] == "string"
+    assert streams[i]["info"]["created_at"][0] == "50942.723319709003"
+    assert streams[i]["info"]["desc"][0] is None
+    assert streams[i]["info"]["uid"][0] == "xdfwriter_11_str"
+
+    # Info added by pyxdf
+    assert streams[i]["info"]["stream_id"] == 0x02C0FFEE
+    assert streams[i]["info"]["effective_srate"] == pytest.approx(10)
+    assert streams[i]["info"]["segments"] == [(0, 8)]
+
+    # Footer should be identical to Stream 0
+    assert streams[i]["footer"] == streams[0]["footer"]
+
+    # Time-series data
+    s = [
+        [
+            '<?xml version="1.0"?><info><writer>LabRecorder xdfwriter'
+            "</writer><first_timestamp>5.1</first_timestamp><last_timestamp>"
+            "5.9</last_timestamp><sample_count>9</sample_count>"
+            "<clock_offsets><offset><time>50979.76</time><value>-.01</value>"
+            "</offset><offset><time>50979.86</time><value>-.02</value>"
+            "</offset></clock_offsets></info>"
+        ],
+        ["Hello"],
+        ["World"],
+        ["from"],
+        ["LSL"],
+        ["Hello"],
+        ["World"],
+        ["from"],
+        ["LSL"],
+    ]
+    t = np.array([5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9])
+    # Synchronization should have no effect on this stream due to no
+    # clock_offsets
+    assert streams[i]["time_series"] == s
+    np.testing.assert_allclose(streams[i]["time_stamps"], t)
+
+    # Clock offsets: does not match the footer but there are no
+    # clock_offsets for this stream in the file
+    clock_times = np.asarray([])
+    clock_values = np.asarray([])
+
+    np.testing.assert_equal(streams[i]["clock_times"], clock_times)
+    np.testing.assert_equal(streams[i]["clock_values"], clock_values)
+
+
+@pytest.mark.parametrize("jitter_break_threshold_seconds", [0.11, 0.09])
+@pytest.mark.skipif("minimal" not in files, reason="File not found.")
+def test_minimal_file_segments(jitter_break_threshold_seconds):
+    path = files["minimal"]
+    streams, header = load_xdf(
+        path,
+        dejitter_timestamps=True,
+        jitter_break_threshold_seconds=jitter_break_threshold_seconds,
+        jitter_break_threshold_samples=0,
+    )
+    for stream in streams:
+        tdiff = 1 / float(stream["info"]["nominal_srate"][0])
+        if jitter_break_threshold_seconds > tdiff:
+            assert stream["info"]["segments"] == [(0, 8)]
+            assert stream["info"]["effective_srate"] == pytest.approx(10)
+        else:
+            # Pathological case where every sample is a segment
+            assert stream["info"]["segments"] == [
+                (0, 0),
+                (1, 1),
+                (2, 2),
+                (3, 3),
+                (4, 4),
+                (5, 5),
+                (6, 6),
+                (7, 7),
+                (8, 8),
+            ]
+            assert stream["info"]["effective_srate"] == pytest.approx(0)
+
+
+@pytest.mark.parametrize("dejitter_timestamps", [False, True])
+@pytest.mark.parametrize("synchronize_clocks", [False, True])
+@pytest.mark.skipif("empty_streams" not in files, reason="File not found.")
+def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
+    path = files["empty_streams"]
+    streams, header = load_xdf(
+        path,
+        synchronize_clocks=synchronize_clocks,
+        dejitter_timestamps=dejitter_timestamps,
+    )
+
+    assert header["info"]["version"][0] == "1.0"
+
+    assert len(streams) == 4
+
+    # Stream ID: 1
+    i = 2
+    assert streams[i]["info"]["name"][0] == "ctrl"
+    assert streams[i]["info"]["type"][0] == "control"
+    assert streams[i]["info"]["channel_count"][0] == "1"
+    assert streams[i]["info"]["nominal_srate"][0] == "0.000000000000000"
+    assert streams[i]["info"]["channel_format"][0] == "string"
+    assert streams[i]["info"]["source_id"][0] == "kassia"
+    assert streams[i]["info"]["nominal_srate"][0] == "0.000000000000000"
+    assert streams[i]["info"]["version"][0] == "1.100000000000000"
+    assert streams[i]["info"]["created_at"][0] == "91684.87631725401"
+    assert streams[i]["info"]["uid"][0] == "4740b9ba-d45d-4e2b-9a4b-ee966d9b56df"
+    assert streams[i]["info"]["session_id"][0] == "default"
+    assert streams[i]["info"]["hostname"][0] == "kassia"
+    assert streams[i]["info"]["v4address"][0] is None
+    assert streams[i]["info"]["v4data_port"][0] == "16572"
+    assert streams[i]["info"]["v4service_port"][0] == "16572"
+    assert streams[i]["info"]["v6address"][0] is None
+    assert streams[i]["info"]["v6data_port"][0] == "0"
+    assert streams[i]["info"]["v6service_port"][0] == "0"
+    assert streams[i]["info"]["desc"][0]["manufacturer"][0] == "pylsltools"
+
+    # Info added by pyxdf
+    assert streams[i]["info"]["stream_id"] == 1
+    assert streams[i]["info"]["effective_srate"] == 0
+    assert streams[i]["info"]["segments"] == [(0, 0)]
+
+    # Footer
+    assert streams[i]["footer"]["info"]["first_timestamp"][0] == "91725.014004246"
+    assert streams[i]["footer"]["info"]["last_timestamp"][0] == "91725.014004246"
+    assert streams[i]["footer"]["info"]["sample_count"][0] == "1"
+    first_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][0]
+    assert first_clock_offset["time"][0] == "91716.691545932"
+    assert first_clock_offset["value"][0] == "-1.889200211735442e-05"
+    last_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][-1]
+    assert last_clock_offset["time"][0] == "91746.69261952251"
+    assert last_clock_offset["value"][0] == "-3.837950498564169e-05"
+
+    # Time-series data
+    s = [['{"state": 2}']]
+    t = np.array([91725.01400425])
+
+    assert streams[i]["time_series"] == s
+    np.testing.assert_allclose(streams[i]["time_stamps"], t)
+
+    # Clock offsets: Test against footer
+    assert streams[i]["clock_times"][0] == pytest.approx(
+        float(first_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][0] == pytest.approx(
+        float(first_clock_offset["value"][0]), abs=1e-4
+    )
+    assert streams[i]["clock_times"][-1] == pytest.approx(
+        float(last_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][-1] == pytest.approx(
+        float(last_clock_offset["value"][0]), abs=1e-4
+    )
+
+    # Stream ID: 2
+    i = 3
+    assert streams[i]["info"]["name"][0] == "Empty marker stream: test stream 0 counter"
+    assert streams[i]["info"]["type"][0] == "data"
+    assert streams[i]["info"]["channel_count"][0] == "1"
+    assert streams[i]["info"]["channel_format"][0] == "string"
+    assert streams[i]["info"]["source_id"][0] == "test_stream.py:191748:0"
+    assert streams[i]["info"]["nominal_srate"][0] == "0.000000000000000"
+    assert streams[i]["info"]["version"][0] == "1.100000000000000"
+    assert streams[i]["info"]["created_at"][0] == "91696.18816467900"
+    assert streams[i]["info"]["uid"][0] == "6f7e0288-10b8-4f48-89f8-0381ce20922f"
+    assert streams[i]["info"]["session_id"][0] == "default"
+    assert streams[i]["info"]["hostname"][0] == "kassia"
+    assert streams[i]["info"]["v4address"][0] is None
+    assert streams[i]["info"]["v4data_port"][0] == "16574"
+    assert streams[i]["info"]["v4service_port"][0] == "16574"
+    assert streams[i]["info"]["v6address"][0] is None
+    assert streams[i]["info"]["v6data_port"][0] == "0"
+    assert streams[i]["info"]["v6service_port"][0] == "0"
+    assert streams[i]["info"]["desc"][0]["manufacturer"][0] == "pylsltools"
+
+    # Info added by pyxdf
+    assert streams[i]["info"]["stream_id"] == 2
+    assert streams[i]["info"]["effective_srate"] == 0
+    assert streams[i]["info"]["segments"] == []
+
+    # Footer
+    assert streams[i]["footer"]["info"]["first_timestamp"][0] == "0"
+    assert streams[i]["footer"]["info"]["last_timestamp"][0] == "0"
+    assert streams[i]["footer"]["info"]["sample_count"][0] == "0"
+    first_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][0]
+    assert first_clock_offset["time"][0] == "91716.691513728"
+    assert first_clock_offset["value"][0] == "-2.540599962230772e-05"
+    last_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][-1]
+    assert last_clock_offset["time"][0] == "91746.69276649199"
+    assert last_clock_offset["value"][0] == "-2.026499714702368e-05"
+
+    # Time-series data
+    s = []
+    t = np.array([], dtype=np.float64)
+
+    np.testing.assert_equal(streams[i]["time_series"], s)
+    np.testing.assert_equal(streams[i]["time_stamps"], t)
+
+    # Clock offsets: Test against footer
+    assert streams[i]["clock_times"][0] == pytest.approx(
+        float(first_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][0] == pytest.approx(
+        float(first_clock_offset["value"][0]), abs=1e-4
+    )
+    assert streams[i]["clock_times"][-1] == pytest.approx(
+        float(last_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][-1] == pytest.approx(
+        float(last_clock_offset["value"][0]), abs=1e-4
+    )
+
+    # Stream ID: 3
+    i = 0
+    assert streams[i]["info"]["name"][0] == "Empty data stream: test stream 0 counter"
+    assert streams[i]["info"]["type"][0] == "data"
+    assert streams[i]["info"]["channel_count"][0] == "1"
+    assert streams[i]["info"]["channel_format"][0] == "float32"
+    assert streams[i]["info"]["source_id"][0] == "test_stream.py:191790:0"
+    assert streams[i]["info"]["nominal_srate"][0] == "1.000000000000000"
+    assert streams[i]["info"]["version"][0] == "1.100000000000000"
+    assert streams[i]["info"]["created_at"][0] == "91699.83395166400"
+    assert streams[i]["info"]["uid"][0] == "ff430a18-9954-43f5-bb5f-f5589e3aa6a2"
+    assert streams[i]["info"]["session_id"][0] == "default"
+    assert streams[i]["info"]["hostname"][0] == "kassia"
+    assert streams[i]["info"]["v4address"][0] is None
+    assert streams[i]["info"]["v4data_port"][0] == "16575"
+    assert streams[i]["info"]["v4service_port"][0] == "16575"
+    assert streams[i]["info"]["v6address"][0] is None
+    assert streams[i]["info"]["v6data_port"][0] == "0"
+    assert streams[i]["info"]["v6service_port"][0] == "0"
+    assert streams[i]["info"]["desc"][0]["manufacturer"][0] == "pylsltools"
+    channels = streams[i]["info"]["desc"][0]["channels"][0]
+    assert channels["channel"][0]["label"][0] == "ch:00"
+    assert channels["channel"][0]["type"][0] == "misc"
+
+    # Info added by pyxdf
+    assert streams[i]["info"]["stream_id"] == 3
+    assert streams[i]["info"]["effective_srate"] == 0
+    assert streams[i]["info"]["segments"] == []
+
+    # Footer
+    assert streams[i]["footer"]["info"]["first_timestamp"][0] == "0"
+    assert streams[i]["footer"]["info"]["last_timestamp"][0] == "0"
+    assert streams[i]["footer"]["info"]["sample_count"][0] == "0"
+    first_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][0]
+    assert first_clock_offset["time"][0] == "91716.6915301265"
+    assert first_clock_offset["value"][0] == "-2.211050014011562e-05"
+    last_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][-1]
+    assert last_clock_offset["time"][0] == "91746.69269425601"
+    assert last_clock_offset["value"][0] == "-1.128000440075994e-05"
+
+    # Time-series data
+    s = np.zeros((0, 1), dtype=np.int32)
+    t = np.array([], dtype=np.float64)
+
+    np.testing.assert_equal(streams[i]["time_series"], s)
+    np.testing.assert_equal(streams[i]["time_stamps"], t)
+
+    # Clock offsets: Test against footer
+    assert streams[i]["clock_times"][0] == pytest.approx(
+        float(first_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][0] == pytest.approx(
+        float(first_clock_offset["value"][0]), abs=1e-4
+    )
+    assert streams[i]["clock_times"][-1] == pytest.approx(
+        float(last_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][-1] == pytest.approx(
+        float(last_clock_offset["value"][0]), abs=1e-4
+    )
+
+    # Stream ID: 4
+    i = 1
+    assert streams[i]["info"]["name"][0] == "Data stream: test stream 0 counter"
+    assert streams[i]["info"]["type"][0] == "data"
+    assert streams[i]["info"]["channel_count"][0] == "1"
+    assert streams[i]["info"]["channel_format"][0] == "int32"
+    assert streams[i]["info"]["source_id"][0] == "test_stream.py:191695:0"
+    assert streams[i]["info"]["nominal_srate"][0] == "1.000000000000000"
+    assert streams[i]["info"]["version"][0] == "1.100000000000000"
+    assert streams[i]["info"]["created_at"][0] == "91690.55328314200"
+    assert streams[i]["info"]["uid"][0] == "bc60b7bb-e632-407c-b3db-e42f9cad4179"
+    assert streams[i]["info"]["session_id"][0] == "default"
+    assert streams[i]["info"]["hostname"][0] == "kassia"
+    assert streams[i]["info"]["v4address"][0] is None
+    assert streams[i]["info"]["v4data_port"][0] == "16573"
+    assert streams[i]["info"]["v4service_port"][0] == "16573"
+    assert streams[i]["info"]["v6address"][0] is None
+    assert streams[i]["info"]["v6data_port"][0] == "0"
+    assert streams[i]["info"]["v6service_port"][0] == "0"
+    assert streams[i]["info"]["desc"][0]["manufacturer"][0] == "pylsltools"
+    channels = streams[i]["info"]["desc"][0]["channels"][0]
+    assert channels["channel"][0]["label"][0] == "ch:00"
+    assert channels["channel"][0]["type"][0] == "misc"
+
+    # Info added by pyxdf
+    assert streams[i]["info"]["stream_id"] == 4
+    assert streams[i]["info"]["effective_srate"] == pytest.approx(1)
+    assert streams[i]["info"]["segments"] == [(0, 9)]
+
+    # Footer
+    assert streams[i]["footer"]["info"]["first_timestamp"][0] == "91725.21394789348"
+    assert streams[i]["footer"]["info"]["last_timestamp"][0] == "91735.21394789348"
+    assert streams[i]["footer"]["info"]["sample_count"][0] == "10"
+    first_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][0]
+    assert first_clock_offset["time"][0] == "91716.6915717245"
+    assert first_clock_offset["value"][0] == "-1.94335007108748e-05"
+    last_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][-1]
+    assert last_clock_offset["time"][0] == "91746.69274602149"
+    assert last_clock_offset["value"][0] == "-3.694550105137751e-05"
+
+    # Time-series data
+    s = np.array([[0], [1], [2], [3], [4], [5], [6], [7], [8], [9]], dtype=np.int32)
+    t = np.array(
+        [
+            91725.21394789,
+            91726.21394789,
+            91727.21394789,
+            91728.21394789,
+            91729.21394789,
+            91730.21394789,
+            91731.21394789,
+            91732.21394789,
+            91733.21394789,
+            91734.21394789,
         ]
-        t = np.array([5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9])
-        assert streams[1]["time_series"] == s
-        np.testing.assert_array_almost_equal(streams[1]["time_stamps"], t)
+    )
 
-        clock_times = np.asarray([])
-        clock_values = np.asarray([])
+    np.testing.assert_equal(streams[i]["time_series"], s)
+    if synchronize_clocks:
+        np.testing.assert_almost_equal(streams[i]["time_stamps"], t, decimal=4)
+    else:
+        np.testing.assert_almost_equal(streams[i]["time_stamps"], t, decimal=8)
 
-        np.testing.assert_array_equal(streams[1]["clock_times"], clock_times)
-        np.testing.assert_array_almost_equal(streams[1]["clock_values"], clock_values)
+    # Dejittering should have negligible effect because ground-truth timestamps have
+    # zero jitter
+    assert np.std(np.diff(streams[i]["time_stamps"])) < 6e-11
 
-        streams, header = load_xdf(
-            file, jitter_break_threshold_seconds=0.001, jitter_break_threshold_samples=1
-        )
-        assert streams[0]["info"]["segments"] == [(0, 0), (1, 3), (4, 8)]
+    # Clock offsets: Test against footer
+    assert streams[i]["clock_times"][0] == pytest.approx(
+        float(first_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][0] == pytest.approx(
+        float(first_clock_offset["value"][0]), abs=1e-4
+    )
+    assert streams[i]["clock_times"][-1] == pytest.approx(
+        float(last_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][-1] == pytest.approx(
+        float(last_clock_offset["value"][0]), abs=1e-4
+    )

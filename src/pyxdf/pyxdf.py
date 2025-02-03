@@ -59,6 +59,9 @@ class StreamData:
         # nominal sampling interval, in seconds, for delta decompression
         self.tdiff = 1.0 / self.srate if self.srate > 0 else 0.0
         self.effective_srate = 0.0
+        # list of segments corresponding to detected time-stamp breaks
+        # (each a tuple of start_idx, end_idx)
+        self.segments = []
         # pre-calc some parsing parameters for efficiency
         if self.fmt != "string":
             self.dtype = np.dtype(fmts[self.fmt])
@@ -375,13 +378,12 @@ def load_xdf(
         for stream in temp.values():
             if len(stream.time_stamps) > 1:
                 duration = stream.time_stamps[-1] - stream.time_stamps[0]
-                stream.effective_srate = len(stream.time_stamps) / duration
+                stream.effective_srate = (len(stream.time_stamps) - 1) / duration
             else:
                 stream.effective_srate = 0.0
             # initialize segment list in case jitter_removal was not selected
-            stream.segments = []
             if len(stream.time_stamps) > 0:
-                stream.segments.append((0, len(stream.time_series) - 1))  # inclusive
+                stream.segments.append((0, len(stream.time_stamps) - 1))  # inclusive
 
     for k in streams.keys():
         stream = streams[k]
@@ -629,8 +631,12 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
     for stream_id, stream in streams.items():
         stream.effective_srate = 0  # will be recalculated if possible
         nsamples = len(stream.time_stamps)
-        stream.segments = []
-        if nsamples > 0 and stream.srate > 0:
+        if nsamples > 0:
+            if stream.srate == 0:
+                # Initialise default segment for irregular sampling rate streams
+                stream.segments.append((0, nsamples - 1))  # inclusive
+                continue
+
             # Identify breaks in the time_stamps
             diffs = np.diff(stream.time_stamps)
             b_breaks = diffs > np.max(
@@ -645,6 +651,7 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
             seg_stops = np.hstack((break_inds - 1, nsamples - 1))  # inclusive
             for a, b in zip(seg_starts, seg_stops):
                 stream.segments.append((a, b))
+
             # Process each segment separately
             for start_ix, stop_ix in zip(seg_starts, seg_stops):
                 # Calculate time stamps assuming constant intervals within each segment
@@ -657,22 +664,20 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
 
             # Recalculate effective_srate if possible
             counts = (seg_stops + 1) - seg_starts
-            if np.any(counts):
-                # Calculate range segment duration (assuming last sample duration was
-                # exactly 1 * stream.tdiff)
+            if np.any(counts > 1):
+                # Calculate range segment duration
                 durations = (
-                    stream.time_stamps[seg_stops] + stream.tdiff
-                ) - stream.time_stamps[seg_starts]
-                stream.effective_srate = np.sum(counts) / np.sum(durations)
+                    stream.time_stamps[seg_stops] - stream.time_stamps[seg_starts]
+                )
+                stream.effective_srate = np.sum(counts - 1) / np.sum(durations)
 
-        srate, effective_srate = stream.srate, stream.effective_srate
-        if srate != 0 and np.abs(srate - effective_srate) / srate > 0.1:
-            msg = (
-                "Stream %d: Calculated effective sampling rate %.4f Hz is different "
-                "from specified rate %.4f Hz."
-            )
-            logger.warning(msg, stream_id, effective_srate, srate)
-
+            srate, effective_srate = stream.srate, stream.effective_srate
+            if np.abs(srate - effective_srate) / srate > 0.1:
+                msg = (
+                    "Stream %d: Calculated effective sampling rate %.4f Hz is different "
+                    "from specified rate %.4f Hz."
+                )
+                logger.warning(msg, stream_id, effective_srate, srate)
     return streams
 
 

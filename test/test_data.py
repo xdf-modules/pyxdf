@@ -426,8 +426,8 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     else:
         np.testing.assert_almost_equal(streams[i]["time_stamps"], t, decimal=8)
 
-    # Dejittering should have negligible effect because ground-truth
-    # timestamps have zero jitter
+    # Dejittering should have negligible effect because ground-truth timestamps have
+    # zero jitter
     assert np.std(np.diff(streams[i]["time_stamps"])) < 6e-11
 
     # Clock offsets: Test against footer

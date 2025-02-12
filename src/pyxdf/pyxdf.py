@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 class StreamData:
     """Temporary per-stream data."""
 
-    def __init__(self, xml, stream_id):
-        """Init a new StreamData object from a stream header and ID."""
+    def __init__(self, xml):
+        """Init a new StreamData object from a stream header."""
         fmts = dict(
             double64=np.float64,
             float32=np.float32,
@@ -40,8 +40,6 @@ class StreamData:
             int8=np.int8,
             int64=np.int64,
         )
-        # stream_id
-        self.stream_id = stream_id
         # number of channels
         self.nchns = int(xml["info"]["channel_count"][0])
         # nominal sampling rate in Hz
@@ -297,7 +295,7 @@ def load_xdf(
                 streams[StreamId] = hdr
                 logger.debug("  found stream " + hdr["info"]["name"][0])
                 # initialize per-stream temp data
-                temp[StreamId] = StreamData(hdr, StreamId)
+                temp[StreamId] = StreamData(hdr)
             elif tag == 3:
                 # read [Samples] chunk...
                 # noinspection PyBroadException
@@ -667,8 +665,8 @@ def _detect_breaks(stream, threshold_seconds=1.0, threshold_samples=500):
     return b_breaks
 
 
-def _jitter_removal(streams, threshold_seconds=1.0, threshold_samples=500):
-    for stream in streams.values():
+def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
+    for stream_id, stream in streams.items():
         stream.effective_srate = 0  # will be recalculated if possible
         nsamples = len(stream.time_stamps)
         if nsamples > 0:
@@ -681,7 +679,7 @@ def _jitter_removal(streams, threshold_seconds=1.0, threshold_samples=500):
             b_breaks = _detect_breaks(stream, threshold_seconds, threshold_samples)
             # Find segment indices
             segments, start_idx, stop_idx = _find_segment_indices(b_breaks)
-            logger.debug(f" Stream {stream.stream_id}: segments={len(segments)}")
+            logger.debug(f" Stream {stream_id}: segments={len(segments)}")
             stream.segments.extend(segments)
 
             # Process each segment separately
@@ -707,7 +705,7 @@ def _jitter_removal(streams, threshold_seconds=1.0, threshold_samples=500):
                     "Stream %d: Calculated effective sampling rate %.4f Hz is different "
                     "from specified rate %.4f Hz."
                 )
-                logger.warning(msg, stream.stream_id, effective_srate, srate)
+                logger.warning(msg, stream_id, effective_srate, srate)
     return streams
 
 

@@ -3,6 +3,25 @@ import pytest
 
 
 class MockStreamData:
+    """Mock StreamData class for tests.
+
+    Defines the same attributes as StreamData with basic data
+    validation, and tries to ensure convenient defaults so that only
+    arguments required for a specific test need to be provided.
+
+    Args:
+      stream_id : Stream-id (default: 1)
+      srate : Sampling rate (default: None)
+      tdiff : Sampling interval (default: None)
+        Should be 1/srate if both srate and tdiff are provided.
+      fmt : XDF format string denoting channel-format (default "float64")
+      time_stamps : 1D array-like of time-stamps (default: [])
+      time_series : nD array-like of time-series data (default: None)
+        If no time_series is provided time_stamp values are use as a convenient default.
+        Number of channels is inferred from the shape of the data.
+      clock_times : list of clock offset times (default: [])
+      clock_values : list of clock offset values (default: [])
+    """
     def __init__(
         self,
         *,

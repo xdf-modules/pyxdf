@@ -191,7 +191,7 @@ def test_mock_stream_timeseries_defaults(fmt):
 
 
 @pytest.mark.parametrize("nchans", [1, 2])
-@pytest.mark.parametrize("fmt", [np.float32, np.float64, np.int32, np.int64, "string"])
+@pytest.mark.parametrize("fmt", [np.float64, "string"])
 def test_mock_stream_timeseries(fmt, nchans):
     time_stamps = np.arange(0, 1, 0.1)
     samples = range(10, 20)

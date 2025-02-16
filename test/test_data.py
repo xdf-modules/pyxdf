@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from pyxdf import load_xdf
+from pyxdf import load_xdf, match_streaminfos, resolve_streams
 
 # requires git clone https://github.com/xdf-modules/example-files.git into the root
 # pyxdf folder
@@ -17,6 +17,25 @@ files = {
     }.items()
     if (path / value).exists()
 }
+
+
+@pytest.mark.skipif("minimal" not in files, reason="File not found.")
+def test_match_streaminfos():
+    """Test matching stream infos."""
+    path = files["minimal"]
+    stream_infos = resolve_streams(path)
+
+    parameters = [{"name": "SendDataString"}]
+    matches = match_streaminfos(stream_infos, parameters)
+    assert matches == [46202862]
+
+    parameters = [{"name": "senddatastring"}]
+    matches = match_streaminfos(stream_infos, parameters)
+    assert matches == []
+
+    parameters = [{"name": "senddatastring"}]
+    matches = match_streaminfos(stream_infos, parameters, case_sensitive=False)
+    assert matches == [46202862]
 
 
 @pytest.mark.parametrize("synchronize_clocks", [False, True])

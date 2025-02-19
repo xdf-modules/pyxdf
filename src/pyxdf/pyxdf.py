@@ -738,13 +738,12 @@ def match_streaminfos(stream_infos, parameters, *, case_sensitive=True):
             "EEG".
     case_sensitive : bool
         Whether or not matching of values corresponding to keys from `parameters` and
-        the stream info should be done case sensitive. Defaults to ``True``.
+        the stream info should be done case sensitive. Defaults to `True`.
 
     Returns
     -------
-    matches : list of int
-        A list of unique stream IDs that point to streams matching the specified
-        criteria.
+    list of int
+        A list of unique stream IDs matching the specified criteria.
     """
     matches = []
     match = False
@@ -760,8 +759,7 @@ def match_streaminfos(stream_infos, parameters, *, case_sensitive=True):
             if match:
                 matches.append(info["stream_id"])
 
-    matches = list(set(matches))  # unique values only
-    return matches
+    return list(set(matches))  # unique values only
 
 
 def resolve_streams(fname):

@@ -720,7 +720,7 @@ def _robust_fit(A, y, rho=1, iters=1000):
     return x
 
 
-def match_streaminfos(stream_infos, parameters):
+def match_streaminfos(stream_infos, parameters, *, case_sensitive=True):
     """Find stream IDs matching specified criteria.
 
     Parameters
@@ -736,19 +736,30 @@ def match_streaminfos(stream_infos, parameters):
           - [{"name": "Keyboard"}, {"type": "EEG"}] matches all streams with a "name"
             field equal to "Keyboard" and all streams with a "type" field equal to
             "EEG".
+    case_sensitive : bool
+        Whether or not matching of values corresponding to keys from `parameters` and
+        the stream info should be done case sensitive. Defaults to `True`.
+
+    Returns
+    -------
+    list of int
+        A list of unique stream IDs matching the specified criteria.
     """
     matches = []
     match = False
     for request in parameters:
         for info in stream_infos:
             for key in request.keys():
-                match = info[key] == request[key]
+                if case_sensitive:
+                    match = info[key] == request[key]
+                else:
+                    match = info[key].lower() == request[key].lower()
                 if not match:
                     break
             if match:
                 matches.append(info["stream_id"])
 
-    return list(set(matches))  # return unique values
+    return list(set(matches))  # unique values only
 
 
 def resolve_streams(fname):

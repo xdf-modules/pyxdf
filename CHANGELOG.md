@@ -1,5 +1,6 @@
 ## [UNRELEASED] - YYYY-MM-DD
 ### Added
+- Add new `case_sensitive` parameter to `match_streaminfos`, defaulting to `False` to maintain previous behavior; when `False`, stream properties are matched more leniently ([#134](https://github.com/xdf-modules/pyxdf/pull/134) by [Stefan Appelhoff](https://github.com/sappelhoff))
 - Expand tests for dejitter segments to cover all initialisation contexts ([#129](https://github.com/xdf-modules/pyxdf/pull/129) by [Jamie Forth](https://github.com/jamieforth))
 - Generic `MockStreamData` class for unit testing ([#130](https://github.com/xdf-modules/pyxdf/pull/130) by [Jamie Forth](https://github.com/jamieforth))
 - New tests for jitter removal and segmentation ([#130](https://github.com/xdf-modules/pyxdf/pull/130) by [Jamie Forth](https://github.com/jamieforth))

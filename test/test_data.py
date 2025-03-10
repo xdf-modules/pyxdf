@@ -340,7 +340,6 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["name"][0] == "ctrl"
     assert streams[i]["info"]["type"][0] == "control"
     assert streams[i]["info"]["channel_count"][0] == "1"
-    assert streams[i]["info"]["nominal_srate"][0] == "0.000000000000000"
     assert streams[i]["info"]["channel_format"][0] == "string"
     assert streams[i]["info"]["source_id"][0] == "kassia"
     assert streams[i]["info"]["nominal_srate"][0] == "0.000000000000000"

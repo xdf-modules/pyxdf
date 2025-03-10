@@ -110,3 +110,4 @@ class MockStreamData:
             if len(clock_times) != len(clock_values):
                 raise ValueError("Clock times and values must be the same length")
         self.segments = []
+        self.clock_segments = []

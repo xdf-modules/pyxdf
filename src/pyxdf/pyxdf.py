@@ -376,11 +376,10 @@ def load_xdf(
         )
     else:
         for stream in temp.values():
-            if len(stream.time_stamps) > 1:
+            # initialize effective_srate in case jitter_removal was not selected
+            if stream.srate != 0 and len(stream.time_stamps) > 1:
                 duration = stream.time_stamps[-1] - stream.time_stamps[0]
                 stream.effective_srate = (len(stream.time_stamps) - 1) / duration
-            else:
-                stream.effective_srate = 0.0
             # initialize segment list in case jitter_removal was not selected
             if len(stream.time_stamps) > 0:
                 stream.segments.append((0, len(stream.time_stamps) - 1))  # inclusive
@@ -695,8 +694,9 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
             # Recalculate effective_srate if possible
             counts = (stop_idx + 1) - start_idx
             if np.any(counts > 1):
-                # Calculate range segment duration
+                # Calculate segment durations
                 durations = stream.time_stamps[stop_idx] - stream.time_stamps[start_idx]
+                # Calculate effective srate as weighted mean
                 stream.effective_srate = np.sum(counts - 1) / np.sum(durations)
 
             srate, effective_srate = stream.srate, stream.effective_srate

@@ -65,6 +65,9 @@ def test_minimal_file(synchronize_clocks):
     assert streams[i]["info"]["stream_id"] == 0
     assert streams[i]["info"]["effective_srate"] == pytest.approx(10)
     assert streams[i]["info"]["segments"] == [(0, 8)]
+    assert streams[i]["info"]["clock_segments"] == (
+        [(0, 8)] if synchronize_clocks else []
+    )
 
     # Footer
     assert streams[i]["footer"]["info"]["first_timestamp"][0] == "5.1"
@@ -191,6 +194,134 @@ def test_minimal_file_segments(jitter_break_threshold_seconds):
 
 @pytest.mark.parametrize("dejitter_timestamps", [False, True])
 @pytest.mark.parametrize("synchronize_clocks", [False, True])
+@pytest.mark.skipif("clock_resets" not in files, reason="File not found.")
+def test_clock_resets_file(synchronize_clocks, dejitter_timestamps):
+    path = files["clock_resets"]
+    streams, header = load_xdf(
+        path,
+        synchronize_clocks=synchronize_clocks,
+        dejitter_timestamps=dejitter_timestamps,
+    )
+
+    assert header["info"]["version"][0] == "1.0"
+
+    assert len(streams) == 2
+
+    # Stream ID: 1
+    i = 0
+    assert streams[i]["info"]["name"][0] == "MyMarkerStream"
+    assert streams[i]["info"]["type"][0] == "Markers"
+    assert streams[i]["info"]["channel_count"][0] == "1"
+    assert streams[i]["info"]["nominal_srate"][0] == "0"
+    assert streams[i]["info"]["channel_format"][0] == "string"
+    assert streams[i]["info"]["source_id"][0] == "myuidw43536"
+    assert streams[i]["info"]["version"][0] == "1.1000000000000001"
+    assert streams[i]["info"]["created_at"][0] == "564076.02850699995"
+    assert streams[i]["info"]["uid"][0] == "1efcb4a6-8894-4014-b404-4b6f6b2205f2"
+    assert streams[i]["info"]["session_id"][0] == "default"
+    assert streams[i]["info"]["hostname"][0] == "BP-LP-022"
+    assert streams[i]["info"]["v4address"][0] is None
+    assert streams[i]["info"]["v4data_port"][0] == "16572"
+    assert streams[i]["info"]["v4service_port"][0] == "16572"
+    assert streams[i]["info"]["v6address"][0] is None
+    assert streams[i]["info"]["v6data_port"][0] == "16572"
+    assert streams[i]["info"]["v6service_port"][0] == "16572"
+
+    # Info added by pyxdf
+    assert streams[i]["info"]["stream_id"] == 1
+    assert streams[i]["info"]["effective_srate"] == 0
+    assert streams[i]["info"]["segments"] == [(0, 174)]
+    assert streams[i]["info"]["clock_segments"] == (
+        [(0, 90), (91, 174)] if synchronize_clocks else []
+    )
+
+    # Footer
+    assert streams[i]["footer"]["info"]["first_timestamp"][0] == "653153.2121885"
+    assert streams[i]["footer"]["info"]["last_timestamp"][0] == "259.6538279"
+    assert streams[i]["footer"]["info"]["sample_count"][0] == "175"
+    first_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][0]
+    assert first_clock_offset["time"][0] == "653156.02616855"
+    assert first_clock_offset["value"][0] == "-652340.2838639501"
+    last_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][-1]
+    assert last_clock_offset["time"][0] == "264.6430016000002"
+    assert last_clock_offset["value"][0] == "1121.165595"
+
+    # Clock offsets: Test against footer
+    assert streams[i]["clock_times"][0] == pytest.approx(
+        float(first_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][0] == pytest.approx(
+        float(first_clock_offset["value"][0]), abs=1e-4
+    )
+    assert streams[i]["clock_times"][-1] == pytest.approx(
+        float(last_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][-1] == pytest.approx(
+        float(last_clock_offset["value"][0]), abs=1e-4
+    )
+
+    # Stream ID: 2
+    i = 1
+    assert streams[i]["info"]["name"][0] == "BioSemi"
+    assert streams[i]["info"]["type"][0] == "EEG"
+    assert streams[i]["info"]["channel_count"][0] == "8"
+    assert streams[i]["info"]["nominal_srate"][0] == "100"
+    assert streams[i]["info"]["channel_format"][0] == "float32"
+    assert streams[i]["info"]["source_id"][0] == "myuid34234"
+    assert streams[i]["info"]["version"][0] == "1.1000000000000001"
+    assert streams[i]["info"]["created_at"][0] == "653103.26692229998"
+    assert streams[i]["info"]["uid"][0] == "fa3e14ab-b621-480e-a9d5-c740f0e47140"
+    assert streams[i]["info"]["session_id"][0] == "default"
+    assert streams[i]["info"]["hostname"][0] == "BP-LP-022"
+    assert streams[i]["info"]["v4address"][0] is None
+    assert streams[i]["info"]["v4data_port"][0] == "16573"
+    assert streams[i]["info"]["v4service_port"][0] == "16573"
+    assert streams[i]["info"]["v6address"][0] is None
+    assert streams[i]["info"]["v6data_port"][0] == "16573"
+    assert streams[i]["info"]["v6service_port"][0] == "16573"
+
+    # Info added by pyxdf
+    assert streams[i]["info"]["stream_id"] == 2
+    if dejitter_timestamps:
+        assert streams[i]["info"]["effective_srate"] == pytest.approx(92.934, abs=1e-3)
+        assert streams[i]["info"]["segments"] == [(0, 12875), (12876, 27814)]
+    else:
+        # Effective srate will be incorrect.
+        assert streams[i]["info"]["effective_srate"] != pytest.approx(92.934, abs=1e-3)
+        assert streams[i]["info"]["segments"] == [(0, 27814)]
+
+    assert streams[i]["info"]["clock_segments"] == (
+        [(0, 12875), (12876, 27814)] if synchronize_clocks else []
+    )
+
+    # Footer
+    assert streams[i]["footer"]["info"]["first_timestamp"][0] == "653150.379117"
+    assert streams[i]["footer"]["info"]["last_timestamp"][0] == "261.9267033"
+    assert streams[i]["footer"]["info"]["sample_count"][0] == "27815"
+    first_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][0]
+    assert first_clock_offset["time"][0] == "653156.0261441499"
+    assert first_clock_offset["value"][0] == "-652340.28383985"
+    last_clock_offset = streams[i]["footer"]["info"]["clock_offsets"][0]["offset"][-1]
+    assert last_clock_offset["time"][0] == "264.6385764000001"
+    assert last_clock_offset["value"][0] == "1121.1656319"
+
+    # Clock offsets: Test against footer
+    assert streams[i]["clock_times"][0] == pytest.approx(
+        float(first_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][0] == pytest.approx(
+        float(first_clock_offset["value"][0]), abs=1e-4
+    )
+    assert streams[i]["clock_times"][-1] == pytest.approx(
+        float(last_clock_offset["time"][0]), abs=1e-6
+    )
+    assert streams[i]["clock_values"][-1] == pytest.approx(
+        float(last_clock_offset["value"][0]), abs=1e-4
+    )
+
+
+@pytest.mark.parametrize("dejitter_timestamps", [False, True])
+@pytest.mark.parametrize("synchronize_clocks", [False, True])
 @pytest.mark.skipif("empty_streams" not in files, reason="File not found.")
 def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     path = files["empty_streams"]
@@ -209,7 +340,6 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["name"][0] == "ctrl"
     assert streams[i]["info"]["type"][0] == "control"
     assert streams[i]["info"]["channel_count"][0] == "1"
-    assert streams[i]["info"]["nominal_srate"][0] == "0.000000000000000"
     assert streams[i]["info"]["channel_format"][0] == "string"
     assert streams[i]["info"]["source_id"][0] == "kassia"
     assert streams[i]["info"]["nominal_srate"][0] == "0.000000000000000"
@@ -230,6 +360,9 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["stream_id"] == 1
     assert streams[i]["info"]["effective_srate"] == 0
     assert streams[i]["info"]["segments"] == [(0, 0)]
+    assert streams[i]["info"]["clock_segments"] == (
+        [(0, 0)] if synchronize_clocks else []
+    )
 
     # Footer
     assert streams[i]["footer"]["info"]["first_timestamp"][0] == "91725.014004246"
@@ -288,6 +421,7 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["stream_id"] == 2
     assert streams[i]["info"]["effective_srate"] == 0
     assert streams[i]["info"]["segments"] == []
+    assert streams[i]["info"]["clock_segments"] == []
 
     # Footer
     assert streams[i]["footer"]["info"]["first_timestamp"][0] == "0"
@@ -349,6 +483,7 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["stream_id"] == 3
     assert streams[i]["info"]["effective_srate"] == 0
     assert streams[i]["info"]["segments"] == []
+    assert streams[i]["info"]["clock_segments"] == []
 
     # Footer
     assert streams[i]["footer"]["info"]["first_timestamp"][0] == "0"
@@ -410,6 +545,9 @@ def test_empty_streams_file(synchronize_clocks, dejitter_timestamps):
     assert streams[i]["info"]["stream_id"] == 4
     assert streams[i]["info"]["effective_srate"] == pytest.approx(1)
     assert streams[i]["info"]["segments"] == [(0, 9)]
+    assert streams[i]["info"]["clock_segments"] == (
+        [(0, 9)] if synchronize_clocks else []
+    )
 
     # Footer
     assert streams[i]["footer"]["info"]["first_timestamp"][0] == "91725.21394789348"

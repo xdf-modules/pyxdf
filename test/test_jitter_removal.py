@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from pyxdf.pyxdf import _jitter_removal
+from pyxdf.pyxdf import _jitter_removal, _sort_stream_data
 
 from mock_data_stream import MockStreamData
 
@@ -76,10 +76,39 @@ def test_jitter_removal_two_segments_non_monotonic(segments, t_starts):
     np.testing.assert_allclose(stream.effective_srate, srate)
 
 
+@pytest.mark.parametrize(
+    "segments, t_starts",
+    [
+        ([(0, 9), (10, 19)], [11, 0]),
+        ([(0, 9), (10, 19)], [1, -10]),
+        ([(0, 19), (20, 39)], [11, -10]),
+    ],
+)
+def test_jitter_removal_two_segments_non_monotonic_sorted(segments, t_starts):
+    srate = 1
+    tdiff = 1
+    time_stamps = [
+        np.arange(start_time, start_time + (seg_end - seg_start) + 1, tdiff)
+        for (seg_start, seg_end), start_time in zip(segments, t_starts)
+    ]
+    time_stamps = np.hstack(time_stamps)
+    streams = {
+        1: _sort_stream_data(
+            1, MockStreamData(time_stamps=time_stamps, srate=srate, tdiff=tdiff)
+        )
+    }
+    _jitter_removal(streams, threshold_seconds=1, threshold_samples=1)
+    stream = streams[1]
+    assert stream.segments == segments
+    np.testing.assert_allclose(stream.time_stamps, sorted(time_stamps), atol=1e-14)
+    np.testing.assert_equal(stream.time_series[:, 0], sorted(time_stamps))
+    np.testing.assert_allclose(stream.effective_srate, srate)
+
+
 def test_jitter_removal_glitch():
     srate = 1
     tdiff = 1
-    time_stamps = [1, 2, 3, 4, 6, 5, 7, 8, 9, 10]
+    time_stamps = [1, 2, 3, 4] + [6] + [5, 7, 8, 9, 10]
     streams = {1: MockStreamData(time_stamps=time_stamps, srate=srate, tdiff=tdiff)}
     _jitter_removal(streams, threshold_seconds=1, threshold_samples=1)
     stream = streams[1]
@@ -87,6 +116,22 @@ def test_jitter_removal_glitch():
     np.testing.assert_allclose(stream.time_stamps, time_stamps)
     np.testing.assert_equal(stream.time_series[:, 0], time_stamps)
     np.testing.assert_allclose(stream.effective_srate, srate)
+
+
+def test_jitter_removal_glitch_sorted():
+    srate = 1
+    tdiff = 1
+    time_stamps = [1, 2, 3, 4] + [6] + [5, 7, 8, 9, 10]
+    streams = {
+        1: _sort_stream_data(
+            1, MockStreamData(time_stamps=time_stamps, srate=srate, tdiff=tdiff)
+        )
+    }
+    _jitter_removal(streams, threshold_seconds=1, threshold_samples=1)
+    stream = streams[1]
+    assert stream.segments == [(0, len(time_stamps) - 1)]
+    np.testing.assert_allclose(stream.time_stamps, sorted(time_stamps))
+    np.testing.assert_equal(stream.time_series[:, 0], sorted(time_stamps))
     np.testing.assert_allclose(stream.effective_srate, srate)
 
 

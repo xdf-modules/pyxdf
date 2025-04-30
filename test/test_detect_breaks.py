@@ -121,36 +121,42 @@ def test_detect_breaks_non_monotonic(offset, threshold_seconds):
 
 
 # Sorted non-monotonic timeseries data - segment at time-intervals
-# between ascending-order time_stamps (intervals are always ≥ 0).
+# between ascending-order time_stamps (intervals are always ≥ 0)
 
 
-def test_detect_breaks_reverse_sorted():
+@pytest.mark.parametrize("reorder_timeseries", [False, True])
+def test_detect_breaks_reverse_sorted(reorder_timeseries):
     time_stamps = list(reversed(range(-5, 5)))
     stream = MockStreamData(time_stamps=time_stamps, tdiff=1)
-    stream = _sort_stream_data(1, stream)
-    # Timeseries should now also be sorted.
-    np.testing.assert_array_equal(stream.time_series[:, 0], sorted(time_stamps))
+    stream = _sort_stream_data(1, stream, reorder_timeseries=reorder_timeseries)
+    if reorder_timeseries:
+        # Timeseries should now also be sorted
+        np.testing.assert_array_equal(stream.time_series[:, 0], sorted(time_stamps))
     # if diff > 1 -> 0
     b_breaks = _detect_breaks(stream, threshold_seconds=1, threshold_samples=0)
     breaks = np.where(b_breaks)[0]
     assert breaks.size == 0
 
 
+@pytest.mark.parametrize("reorder_timeseries", [False, True])
 @pytest.mark.parametrize("fmt", ["float32", "string"])
 @pytest.mark.parametrize("threshold_seconds", [0.1, 1, 2])
 @pytest.mark.parametrize("offset", [-10, -1, 0, 10])
-def test_detect_breaks_non_monotonic_sorted(offset, threshold_seconds, fmt):
+def test_detect_breaks_non_monotonic_sorted(
+    offset, threshold_seconds, fmt, reorder_timeseries
+):
     time_stamps = [3] + [0, 1, 2] + [4, 5] + [7] + [5]
     time_stamps = np.array(time_stamps) + offset
     stream = MockStreamData(time_stamps=time_stamps, tdiff=1, fmt=fmt)
-    stream = _sort_stream_data(1, stream)
-    # Timeseries data should now also be sorted.
-    if fmt == "string":
-        np.testing.assert_array_equal(
-            stream.time_series, [[str(float(x))] for x in sorted(time_stamps)]
-        )
-    else:
-        np.testing.assert_array_equal(stream.time_series[:, 0], sorted(time_stamps))
+    stream = _sort_stream_data(1, stream, reorder_timeseries)
+    if reorder_timeseries:
+        # Timeseries data should now also be sorted
+        if fmt == "string":
+            np.testing.assert_array_equal(
+                stream.time_series, [[str(float(x))] for x in sorted(time_stamps)]
+            )
+        else:
+            np.testing.assert_array_equal(stream.time_series[:, 0], sorted(time_stamps))
     b_breaks = _detect_breaks(
         stream,
         threshold_seconds=threshold_seconds,

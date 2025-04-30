@@ -16,6 +16,7 @@ import itertools
 import logging
 import struct
 from collections import OrderedDict, defaultdict, namedtuple
+from enum import Enum
 from pathlib import Path
 from xml.etree.ElementTree import ParseError, fromstring
 
@@ -24,6 +25,13 @@ import numpy as np
 __all__ = ["load_xdf"]
 
 logger = logging.getLogger(__name__)
+
+
+class HandleNonMonoState(Enum):
+    DISABLE = None
+    WARN = "warn"
+    TRUST_TIMESERIES = "trust_timeseries"
+    TRUST_TIMESTAMPS = "trust_timestamps"
 
 
 class StreamData:
@@ -77,7 +85,7 @@ def load_xdf(
     select_streams=None,
     *,
     on_chunk=None,
-    handle_non_monotonic=False,
+    handle_non_monotonic="warn",
     synchronize_clocks=True,
     handle_clock_resets=True,
     dejitter_timestamps=True,
@@ -121,12 +129,14 @@ def load_xdf(
         verbose : Passing True will set logging level to DEBUG, False will set it to
           WARNING, and None will use root logger level. (default: None)
 
-        handle_non_monotonic : bool | None
-          Whether to warn only or sort samples that are not in ascending time
-          order. (default: False)
-          - bool : 'False' check only, warning when data are non-monotonic
-                   'True' check and sort non-monotonic data
-          - None : Disable non-monotonicity check
+        handle_non_monotonic : str | None
+          Whether to warn only or ensure data is in ascending time order.
+          - "warn": check only, warning when data are non-monotonic (default)
+          - "trust_timeseries": check and sort non-monotonic time-stamps only,
+            preserving sample sequence order.
+          - "trust_timestamps": check and sort non-monotonic time-stamps and samples,
+            preserving time-stamp and sample alignment.
+          - None: Disable non-monotonicity check.
 
         synchronize_clocks : Whether to enable clock synchronization based on
           ClockOffset chunks. (default: true)
@@ -209,6 +219,9 @@ def load_xdf(
         logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
 
     logger.info("Importing XDF file %s..." % filename)
+
+    # Validate handle_non_monotonic argument.
+    handle_non_monotonic = HandleNonMonoState(handle_non_monotonic)
 
     # if select_streams is an int or a list of int, load only streams associated with
     # the corresponding stream IDs
@@ -365,8 +378,8 @@ def load_xdf(
                 stream.time_series = np.zeros((0, stream.nchns))
 
     # Perform initial non-monotonicity checks if requested
-    if handle_non_monotonic is None:
-        logger.debug("  skipping non-monotonicity check...")
+    if handle_non_monotonic is HandleNonMonoState.DISABLE:
+        logger.info("  skipping non-monotonicity check...")
     else:
         logger.info("  performing non-monotonicity check...")
         mono_status = _check_monotonicity(temp)
@@ -376,7 +389,7 @@ def load_xdf(
         if time_stamps_mono and clock_times_mono:
             # All streams are monotonic.
             logger.info("All streams are monotonic, continuing...")
-        elif not handle_non_monotonic:
+        elif handle_non_monotonic is HandleNonMonoState.WARN:
             # Some data are non-monotonic, but we will not attempt to handle it.
             if not synchronize_clocks and not clock_times_mono:
                 msg = (
@@ -387,7 +400,8 @@ def load_xdf(
             else:
                 msg = (
                     "Non-monotonic streams detected - "
-                    "consider loading with 'handle_non_monotonic=True'."
+                    "consider loading with handle_non_monotonic='trust_timeseries' "
+                    "or 'trust_timestamps'"
                 )
                 logger.warning(msg)
 
@@ -405,10 +419,17 @@ def load_xdf(
         )
 
     # perform non-monotonicity handling if requested
-    if handle_non_monotonic:
-        logger.info("  sorting non-monotonic data...")
+    if (
+        handle_non_monotonic is HandleNonMonoState.TRUST_TIMESERIES
+        or handle_non_monotonic is HandleNonMonoState.TRUST_TIMESTAMPS
+    ):
+        logger.info(f" sorting non-monotonic data: {handle_non_monotonic.name}...")
         for stream_id, stream in temp.items():
-            _sort_stream_data(stream_id, stream)
+            _sort_stream_data(
+                stream_id,
+                stream,
+                handle_non_monotonic is HandleNonMonoState.TRUST_TIMESTAMPS,
+            )
 
     # perform jitter removal if requested
     if dejitter_timestamps:
@@ -679,30 +700,33 @@ def _check_monotonicity(streams):
     return mono_status
 
 
-def _sort_stream_data(stream_id, stream):
-    """Sort stream data by ground truth timestamps.
+def _sort_stream_data(stream_id, stream, reorder_timeseries=False):
+    """Sort stream timestamps and optionally reorder timeseries data.
 
     Parameters
     ----------
-    stream: StreamData (possibly non-monotonic)
+    stream_id : int
+    stream : StreamData (possibly non-monotonic)
+    reorder_timeseries : bool (default: False)
 
     Returns
     -------
     stream : StreamData (monotonic)
-        With sorted timestamps and timeseries data, if necessary.
+        With sorted timestamps and optionally reordered timeseries data.
 
-    Non-monotonic streams are stable sorted in ascending order of ground
-    truth timestamps. When clock resets have been detected sorting is
-    applied within each clock segment, but clock segments themselves are
-    not sorted.
+    Stable sorts non-monotonic ground-truth timestamps in ascending order. When
+    clock resets have been detected sorting is applied within each clock
+    segment, but clock segments themselves are not sorted.
 
-    Both timestamp and timeseries arrays are modified, keeping all
-    samples aligned with their original timestamp.
+    When `reorder_timeseries=False` only the timestamp array is modified.
+
+    When `reorder_timeseries=True` both timestamp and timeseries arrays are
+    modified, keeping all samples aligned with their original timestamp.
 
     Monotonic streams/segments are not modified.
 
-    Stream may still contain identically timestamped samples, but these
-    can be handled by dejittering.
+    Stream may still contain identically timestamped samples, but these can be
+    handled by dejittering.
     """
     if len(stream.time_stamps) <= 1:
         return stream
@@ -710,21 +734,24 @@ def _sort_stream_data(stream_id, stream):
     if len(clock_segments) == 0:
         # Clocks have not been synchronized.
         clock_segments = [(0, len(stream.time_stamps) - 1)]  # inclusive
-    for start_i, end_i in clock_segments:
-        ts_slice = slice(start_i, end_i + 1)
+    for start_i, stop_i in clock_segments:
+        ts_slice = slice(start_i, stop_i + 1)
         if not _monotonic_increasing(stream.time_stamps[ts_slice]).result:
-            logger.info(f"Sorting stream {stream_id}: clock segment {start_i}-{end_i}.")
+            logger.info(
+                f"Sorting stream {stream_id}: clock segment {start_i}-{stop_i}."
+            )
             # Determine monotonic timestamp ordering.
             ind = np.argsort(stream.time_stamps[ts_slice], kind="stable")
             # Reorder timestamps in place.
             stream.time_stamps[ts_slice] = stream.time_stamps[ts_slice][ind]
-            # Reorder timeseries data.
-            if stream.fmt == "string":
-                stream.time_series[ts_slice] = np.array(stream.time_series[ts_slice])[
-                    ind
-                ].tolist()
-            else:
-                stream.time_series[ts_slice] = stream.time_series[ts_slice][ind]
+            if reorder_timeseries:
+                # Reorder timeseries data to align with timestamps.
+                if stream.fmt == "string":
+                    stream.time_series[ts_slice] = np.array(
+                        stream.time_series[ts_slice]
+                    )[ind].tolist()
+                else:
+                    stream.time_series[ts_slice] = stream.time_series[ts_slice][ind]
     return stream
 
 

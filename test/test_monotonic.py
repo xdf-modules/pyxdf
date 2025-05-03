@@ -3,7 +3,7 @@ from pyxdf.pyxdf import _check_monotonicity, _monotonic_increasing
 
 from mock_data_stream import MockStreamData
 
-# Monotonic data.
+# Monotonic data
 
 
 def test_empty_list():
@@ -51,7 +51,7 @@ def test_non_decreasing(a, expected_dec_count, expected_eq_count):
     assert monotonicity.eq_count == expected_eq_count
 
 
-# Non-monotonic data.
+# Non-monotonic data
 
 
 @pytest.mark.parametrize(
@@ -75,7 +75,7 @@ def test_decreasing(a, expected_dec_count, expected_eq_count):
     assert monotonicity.eq_count == expected_eq_count
 
 
-# Monotonic streams: test both time-stamps and clock-times.
+# Monotonic streams: test both time-stamps and clock-times
 
 
 def test_strict_increasing_stream():
@@ -113,7 +113,7 @@ def test_non_decreasing_stream(time_stamps):
     assert monotonicity["clock_times"][1] is True
 
 
-# Non-monotonic streams.
+# Non-monotonic streams
 
 
 @pytest.mark.parametrize(
@@ -134,7 +134,7 @@ def test_decreasing_stream(time_stamps):
         1: MockStreamData(
             time_stamps=time_stamps,
             # Reversed non-monotonic data will still be non-monotonic, but
-            # with different statistics.
+            # with different statistics
             clock_times=list(reversed(time_stamps)),
         )
     }
@@ -143,7 +143,7 @@ def test_decreasing_stream(time_stamps):
     assert monotonicity["clock_times"][1] is False
 
 
-# Mixed monotonic/non-monotonic time-stamps and clock-times.
+# Mixed monotonic/non-monotonic time-stamps and clock-times
 
 
 @pytest.mark.parametrize(
@@ -170,7 +170,7 @@ def test_mixed_strict_increasing_stream(
     assert monotonicity["clock_times"][1] is expected_ct
 
 
-# Multiple mixed monotonic/non-monotonic time-stamps and clock-times.
+# Multiple mixed monotonic/non-monotonic time-stamps and clock-times
 
 
 def test_multiple_strict_increasing_stream():

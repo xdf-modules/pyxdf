@@ -587,7 +587,7 @@ def test_sync_clock_jumps_forward_break_at_reset_non_monotonic(
     handle_non_monotonic,
     expected,
 ):
-    # Non-monotonic time-stamps within clock regions.
+    # Non-monotonic time-stamps within clock regions
     time_stamps = [1, 3, 2, 4, 5] + [17, 18, 20, 19, 21]
     clock_times = [1, 6, 17, 22]
     clock_values = [-1, -1, -12, -12]
@@ -626,7 +626,7 @@ def test_sync_clock_jumps_forward_break_between_reset_non_monotonic(
     handle_non_monotonic,
     expected,
 ):
-    # Non-monotonic time-stamps between clock regions.
+    # Non-monotonic time-stamps between clock regions
     time_stamps = [4, 5, 6, 7, 8, 9, 11, 10] + [13, 12, 14, 15, 16, 17, 18, 19]
     clock_times = [1, 6, 17, 22]
     clock_values = [-1, -1, -3, -3]
@@ -665,7 +665,7 @@ def test_sync_clock_jumps_backward_break_at_reset_non_monotonic(
     handle_non_monotonic,
     expected,
 ):
-    # Non-monotonic time-stamps within clock regions.
+    # Non-monotonic time-stamps within clock regions
     time_stamps = [17, 19, 18, 20, 21] + [1, 2, 4, 3, 5]
     clock_times = [17, 22, 1, 6]
     clock_values = [-12, -12, 9, 9]
@@ -704,7 +704,7 @@ def test_sync_clock_jumps_backward_break_between_reset_non_monotonic(
     handle_non_monotonic,
     expected,
 ):
-    # Non-monotonic time-stamps between clock regions.
+    # Non-monotonic time-stamps between clock regions
     time_stamps = [17, 18, 19, 20, 21, 22, 24, 23] + [2, 1, 3, 4, 5, 6, 7, 8]
     clock_times = [17, 22, 1, 6]
     clock_values = [-12, -12, 9, 9]

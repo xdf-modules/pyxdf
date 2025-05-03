@@ -2,6 +2,7 @@
 ### Added
 - Add new `case_sensitive` parameter to `match_streaminfos`, defaulting to `False` to maintain previous behavior; when `False`, stream properties are matched more leniently ([#134](https://github.com/xdf-modules/pyxdf/pull/134) by [Stefan Appelhoff](https://github.com/sappelhoff))
 - Expose detected clock segments (used in synchronisation) as `stream["info"]["clock_segments"]` ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
+- Add new `handle_non_monotonic` parameter to `load_xdf`, defaulting to `"warn"` to maintain previous behavior with additional warning when non-monotonic data are detected; when `None` check is bypassed entirely. Non-monotonic data are handled by sorting time-stamps (`"trust_timeseries"`) or by re-ordering samples according to sorted time-stamps (`"trust-timestamps"`) ([#132](https://github.com/xdf-modules/pyxdf/pull/132) by [Jamie Forth](https://github.com/jamieforth))
 
 ### Changed
 - Segment at negative time intervals when dejittering ([#130](https://github.com/xdf-modules/pyxdf/pull/130) by [Jamie Forth](https://github.com/jamieforth))

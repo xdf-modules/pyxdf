@@ -60,6 +60,16 @@ class LSLPlaybackClock:
         loop_time: float = 0.0,
         max_sample_rate: Optional[float] = None,
     ):
+        """
+        Create an object that tracks file playback time at optional non-realtime rate.
+
+        Args:
+            rate: Speed of playback. 1.0 is real time.
+            loop_time: What relative time in the file to stop and loop back. 0.0 means no looping.
+            max_sample_rate: The maximum sampling rate we might want to accommodate for sample-by-sample
+                playback. This is used to determine the sleep time between iterations.
+                If None, the sleep time will be 5 msec.
+        """
         if rate != 1.0:
             print(
                 "WARNING!! rate != 1.0; it is impossible to synchronize playback "
@@ -70,10 +80,10 @@ class LSLPlaybackClock:
         self._max_srate = max_sample_rate
         decr = (1 / self._max_srate) if self._max_srate else 2 * sys.float_info.epsilon
         self._wall_start: float = pylsl.local_clock() - decr / 2
-        self._file_read_s: float = 0  # File read header in seconds
-        self._prev_file_read_s: float = (
-            0  # File read header in seconds for previous iteration
-        )
+        # File read header in seconds
+        self._file_read_s: float = 0
+        # File read header in seconds for previous iteration
+        self._prev_file_read_s: float = 0
         self._n_loop: int = 0
 
     def reset(self, reset_file_position: bool = False) -> None:
@@ -175,7 +185,8 @@ def main(
         max_sample_rate=max_rate,
     )
     read_heads = {_.name: 0 for _ in streamers}
-    b_push = not wait_for_consumer  # A flag to indicate we can push samples.
+    # A flag to indicate we can push samples.
+    b_push = not wait_for_consumer
     try:
         while True:
             if not b_push:
@@ -184,7 +195,6 @@ def main(
                 have_consumers = [
                     streamer.outlet.have_consumers() for streamer in streamers
                 ]
-                # b_push = any(have_consumers)
                 b_push = all(have_consumers)
                 if b_push:
                     timer.reset()
@@ -211,7 +221,6 @@ def main(
                                 sample,
                                 timestamp=timer.t0 + float(streamer.tvec[dat_idx]),
                             )
-                            # print(f"Pushed sample: {sample}")
                     read_heads[streamer.name] = stop_idx
 
             if not loop and all_streams_exhausted:

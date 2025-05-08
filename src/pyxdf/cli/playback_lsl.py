@@ -202,12 +202,10 @@ def main(
                     continue
             timer.update()
             t_start, t_stop = timer.step_range
-            all_streams_exhausted = True
             for streamer in streamers:
                 start_idx = read_heads[streamer.name] if t_start > 0 else 0
                 stop_idx = int(np.searchsorted(streamer.tvec, t_stop))
                 if stop_idx > start_idx:
-                    all_streams_exhausted = False
                     if streamer.srate > 0:
                         sl = np.s_[start_idx:stop_idx]
                         push_dat = streams[streamer.stream_ix]["time_series"][sl]
@@ -223,7 +221,9 @@ def main(
                             )
                     read_heads[streamer.name] = stop_idx
 
-            if not loop and all_streams_exhausted:
+            if not loop and all(
+                [t_stop >= streamer.tvec[-1] for streamer in streamers]
+            ):
                 print("Playback finished.")
                 break
             timer.sleep()

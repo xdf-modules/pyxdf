@@ -171,7 +171,7 @@ def main(
     # Create timer to manage playback.
     timer = LSLPlaybackClock(
         rate=playback_speed,
-        loop_time=wrap_dur if loop else None,
+        loop_time=wrap_dur if loop else 0.0,
         max_sample_rate=max_rate,
     )
     read_heads = {_.name: 0 for _ in streamers}

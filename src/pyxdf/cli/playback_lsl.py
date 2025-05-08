@@ -195,20 +195,21 @@ def main(
             all_streams_exhausted = True
             for streamer in streamers:
                 start_idx = read_heads[streamer.name] if t_start > 0 else 0
-                stop_idx = np.searchsorted(streamer.tvec, t_stop)
+                stop_idx = int(np.searchsorted(streamer.tvec, t_stop))
                 if stop_idx > start_idx:
                     all_streams_exhausted = False
                     if streamer.srate > 0:
                         sl = np.s_[start_idx:stop_idx]
                         push_dat = streams[streamer.stream_ix]["time_series"][sl]
-                        push_ts = timer.t0 + streamer.tvec[sl][-1]
+                        push_ts = timer.t0 + float(streamer.tvec[sl][-1])
                         streamer.outlet.push_chunk(push_dat, timestamp=push_ts)
                     else:
                         # Irregular rate, like events and markers
                         for dat_idx in range(start_idx, stop_idx):
                             sample = streams[streamer.stream_ix]["time_series"][dat_idx]
                             streamer.outlet.push_sample(
-                                sample, timestamp=timer.t0 + streamer.tvec[dat_idx]
+                                sample,
+                                timestamp=timer.t0 + float(streamer.tvec[dat_idx]),
                             )
                             # print(f"Pushed sample: {sample}")
                     read_heads[streamer.name] = stop_idx

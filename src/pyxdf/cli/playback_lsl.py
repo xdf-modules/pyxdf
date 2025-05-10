@@ -17,7 +17,7 @@ def _create_info_from_xdf_stream_header(header):
         channel_count=int(header["channel_count"][0]),
         nominal_srate=float(header["nominal_srate"][0]),
         channel_format=header["channel_format"][0],
-        source_id=header["source_id"][0],
+        source_id=header["source_id"][0] if "source_id" in header else "",
     )
     desc = new_info.desc()
     if "desc" in header and header["desc"][0] is not None:

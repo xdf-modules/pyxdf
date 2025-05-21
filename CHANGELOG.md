@@ -11,6 +11,7 @@
 - Ensure empty stream segments are initialised ([#129](https://github.com/xdf-modules/pyxdf/pull/129) by [Jamie Forth](https://github.com/jamieforth))
 - Uniformly calculate effective sample rate as `(len(time_stamps) - 1) / duration` ([#129](https://github.com/xdf-modules/pyxdf/pull/129) by [Jamie Forth](https://github.com/jamieforth))
 - Fix synchronisation for streams with clock resets and MAD calculation used in clock value segmentation ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
+- Fix file playback when not looping ([#136](https://github.com/xdf-modules/pyxdf/pull/136) by [Chadwick Boulay](https://github.com/cboulay))
 
 ## [1.17.0] - 2025-01-07
 ### Fixed

@@ -37,7 +37,7 @@ def test_segments(b_breaks, expected):
                 n_breaks,
                 list(itertools.combinations(range(0, size), n_breaks)),
             )
-            # All sequences of length 3 to 5, continuing from the tests above.
+            # All sequences of length 3 to 5, continuing from the tests above
             for size in range(3, 6)
             # All numbers of breaks between 0 and size
             for n_breaks in range(0, size + 1)

@@ -1,3 +1,18 @@
+## [UNRELEASED] - YYYY-MM-DD
+### Added
+- Add new `case_sensitive` parameter to `match_streaminfos`, defaulting to `False` to maintain previous behavior; when `False`, stream properties are matched more leniently ([#134](https://github.com/xdf-modules/pyxdf/pull/134) by [Stefan Appelhoff](https://github.com/sappelhoff))
+- Expose detected clock segments (used in synchronisation) as `stream["info"]["clock_segments"]` ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
+
+### Changed
+- Segment at negative time intervals when dejittering ([#130](https://github.com/xdf-modules/pyxdf/pull/130) by [Jamie Forth](https://github.com/jamieforth))
+- Handle `LinAlgError` (with warning) during synchronisation ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
+
+### Fixed
+- Ensure empty stream segments are initialised ([#129](https://github.com/xdf-modules/pyxdf/pull/129) by [Jamie Forth](https://github.com/jamieforth))
+- Uniformly calculate effective sample rate as `(len(time_stamps) - 1) / duration` ([#129](https://github.com/xdf-modules/pyxdf/pull/129) by [Jamie Forth](https://github.com/jamieforth))
+- Fix synchronisation for streams with clock resets and MAD calculation used in clock value segmentation ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
+- Fix file playback when not looping ([#136](https://github.com/xdf-modules/pyxdf/pull/136) by [Chadwick Boulay](https://github.com/cboulay))
+
 ## [1.17.0] - 2025-01-07
 ### Fixed
 - Expose detected segment (used in dejittering) as `stream["info"]["segments"]` ([#117](https://github.com/xdf-modules/pyxdf/pull/117) by [Robert Guggenberger](https://github.com/agricolab))

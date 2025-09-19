@@ -17,7 +17,7 @@ def _create_info_from_xdf_stream_header(header):
         channel_count=int(header["channel_count"][0]),
         nominal_srate=float(header["nominal_srate"][0]),
         channel_format=header["channel_format"][0],
-        source_id=header["source_id"][0],
+        source_id=header["source_id"][0] if "source_id" in header else "",
     )
     desc = new_info.desc()
     if "desc" in header and header["desc"][0] is not None:
@@ -60,6 +60,16 @@ class LSLPlaybackClock:
         loop_time: float = 0.0,
         max_sample_rate: Optional[float] = None,
     ):
+        """
+        Create an object that tracks file playback time at optional non-realtime rate.
+
+        Args:
+            rate: Speed of playback. 1.0 is real time.
+            loop_time: What relative time in the file to stop and loop back. 0.0 means no looping.
+            max_sample_rate: The maximum sampling rate we might want to accommodate for sample-by-sample
+                playback. This is used to determine the sleep time between iterations.
+                If None, the sleep time will be 5 msec.
+        """
         if rate != 1.0:
             print(
                 "WARNING!! rate != 1.0; it is impossible to synchronize playback "
@@ -70,10 +80,10 @@ class LSLPlaybackClock:
         self._max_srate = max_sample_rate
         decr = (1 / self._max_srate) if self._max_srate else 2 * sys.float_info.epsilon
         self._wall_start: float = pylsl.local_clock() - decr / 2
-        self._file_read_s: float = 0  # File read header in seconds
-        self._prev_file_read_s: float = (
-            0  # File read header in seconds for previous iteration
-        )
+        # File read header in seconds
+        self._file_read_s: float = 0
+        # File read header in seconds for previous iteration
+        self._prev_file_read_s: float = 0
         self._n_loop: int = 0
 
     def reset(self, reset_file_position: bool = False) -> None:
@@ -171,11 +181,12 @@ def main(
     # Create timer to manage playback.
     timer = LSLPlaybackClock(
         rate=playback_speed,
-        loop_time=wrap_dur if loop else None,
+        loop_time=wrap_dur if loop else 0.0,
         max_sample_rate=max_rate,
     )
     read_heads = {_.name: 0 for _ in streamers}
-    b_push = not wait_for_consumer  # A flag to indicate we can push samples.
+    # A flag to indicate we can push samples.
+    b_push = not wait_for_consumer
     try:
         while True:
             if not b_push:
@@ -184,7 +195,6 @@ def main(
                 have_consumers = [
                     streamer.outlet.have_consumers() for streamer in streamers
                 ]
-                # b_push = any(have_consumers)
                 b_push = all(have_consumers)
                 if b_push:
                     timer.reset()
@@ -192,28 +202,28 @@ def main(
                     continue
             timer.update()
             t_start, t_stop = timer.step_range
-            all_streams_exhausted = True
             for streamer in streamers:
                 start_idx = read_heads[streamer.name] if t_start > 0 else 0
-                stop_idx = np.searchsorted(streamer.tvec, t_stop)
+                stop_idx = int(np.searchsorted(streamer.tvec, t_stop))
                 if stop_idx > start_idx:
-                    all_streams_exhausted = False
                     if streamer.srate > 0:
                         sl = np.s_[start_idx:stop_idx]
                         push_dat = streams[streamer.stream_ix]["time_series"][sl]
-                        push_ts = timer.t0 + streamer.tvec[sl][-1]
+                        push_ts = timer.t0 + float(streamer.tvec[sl][-1])
                         streamer.outlet.push_chunk(push_dat, timestamp=push_ts)
                     else:
                         # Irregular rate, like events and markers
                         for dat_idx in range(start_idx, stop_idx):
                             sample = streams[streamer.stream_ix]["time_series"][dat_idx]
                             streamer.outlet.push_sample(
-                                sample, timestamp=timer.t0 + streamer.tvec[dat_idx]
+                                sample,
+                                timestamp=timer.t0 + float(streamer.tvec[dat_idx]),
                             )
-                            # print(f"Pushed sample: {sample}")
                     read_heads[streamer.name] = stop_idx
 
-            if not loop and all_streams_exhausted:
+            if not loop and all(
+                [t_stop >= streamer.tvec[-1] for streamer in streamers]
+            ):
                 print("Playback finished.")
                 break
             timer.sleep()

@@ -79,14 +79,15 @@ def test_jitter_removal_two_segments_non_monotonic(segments, t_starts):
 def test_jitter_removal_glitch():
     srate = 1
     tdiff = 1
-    time_stamps = [1, 2, 3, 4, 6, 5, 7, 8, 9, 10]
+    time_stamps = [1, 2, 3, 4] + [6, 5] + [7, 8, 9, 10]
     streams = {1: MockStreamData(time_stamps=time_stamps, srate=srate, tdiff=tdiff)}
     _jitter_removal(streams, threshold_seconds=1, threshold_samples=1)
     stream = streams[1]
-    assert stream.segments == [(0, 3), (4, 4), (5, 5), (6, 9)]
+    assert stream.segments == [(0, 3), (4, 5), (6, 9)]
     np.testing.assert_allclose(stream.time_stamps, time_stamps)
     np.testing.assert_equal(stream.time_series[:, 0], time_stamps)
-    np.testing.assert_allclose(stream.effective_srate, srate)
+    # FIXME: This will fail if we do not always segment at negative time
+    # intervals: the duration of segment [6, 5] is -1.
     np.testing.assert_allclose(stream.effective_srate, srate)
 
 

@@ -106,6 +106,7 @@ def test_detect_breaks_monotonic(offset, threshold_seconds, reverse):
 
 # Non-monotonic timeseries data
 
+
 @pytest.mark.parametrize("reverse", (False, True))
 @pytest.mark.parametrize("threshold_seconds", [0.1, 1, 2])
 @pytest.mark.parametrize("offset", [-10, -1, 0, 10])

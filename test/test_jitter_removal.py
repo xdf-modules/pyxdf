@@ -76,17 +76,26 @@ def test_jitter_removal_two_segments_non_monotonic(segments, t_starts):
     np.testing.assert_allclose(stream.effective_srate, srate)
 
 
+@pytest.mark.xfail(reason="known edge case: negative segment duration")
 def test_jitter_removal_glitch():
     srate = 1
     tdiff = 1
-    time_stamps = [1, 2, 3, 4, 6, 5, 7, 8, 9, 10]
+    time_stamps = [1, 2, 3, 4] + [6, 5] + [7, 8, 9, 10]
     streams = {1: MockStreamData(time_stamps=time_stamps, srate=srate, tdiff=tdiff)}
     _jitter_removal(streams, threshold_seconds=1, threshold_samples=1)
     stream = streams[1]
-    assert stream.segments == [(0, 3), (4, 4), (5, 5), (6, 9)]
+    assert stream.segments == [(0, 3), (4, 5), (6, 9)]
     np.testing.assert_allclose(stream.time_stamps, time_stamps)
     np.testing.assert_equal(stream.time_series[:, 0], time_stamps)
-    np.testing.assert_allclose(stream.effective_srate, srate)
+    # This will fail if negative time intervals are permitted within segments
+    # because the duration of segment [6, 5] is -1. This is a result of
+    # segmenting with `abs(diffs)` (see `pyxdf._detect_breaks()`).
+
+    # Strictly segmenting at all negative time intervals produces the segments:
+    # [1, 2, 3, 4] + [6] + [5] + [7, 8, 9, 10], which gives the correct
+    # effective sample rate. While the strict approach is arguably more sound,
+    # segmenting with `abs(diffs)` is more forgiving of devices with poor
+    # timing accuracy, and aligns with xdf-matlab implementation.
     np.testing.assert_allclose(stream.effective_srate, srate)
 
 

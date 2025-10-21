@@ -1,5 +1,7 @@
 ## [UNRELEASED] - YYYY-MM-DD
 
+- Fix `UserWarning` emitted by `numpy.divide` in numpy 2.4+ ([#146](https://github.com/xdf-modules/pyxdf/pull/146) by [Mathieu Scheltienne](https://github.com/mscheltienne))
+
 ## [1.17.1] - 2025-10-13
 ### Added
 - Add new `case_sensitive` parameter to `match_streaminfos`, defaulting to `True` to maintain previous behavior; when `False`, stream properties are matched more leniently ([#134](https://github.com/xdf-modules/pyxdf/pull/134) by [Stefan Appelhoff](https://github.com/sappelhoff))

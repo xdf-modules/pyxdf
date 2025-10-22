@@ -1,6 +1,6 @@
 ## [UNRELEASED] - YYYY-MM-DD
-
-- Fix `UserWarning` emitted by `numpy.divide` in numpy 2.4+ ([#146](https://github.com/xdf-modules/pyxdf/pull/146) by [Mathieu Scheltienne](https://github.com/mscheltienne))
+### Fixed
+- Fix `UserWarning` emitted by `numpy.divide` in NumPy 2.4+ ([#146](https://github.com/xdf-modules/pyxdf/pull/146) by [Mathieu Scheltienne](https://github.com/mscheltienne))
 
 ## [1.17.1] - 2025-10-13
 ### Added

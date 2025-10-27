@@ -3,6 +3,8 @@
 - Fix `UserWarning` emitted by `numpy.divide` in NumPy 2.4+ ([#146](https://github.com/xdf-modules/pyxdf/pull/146) by [Mathieu Scheltienne](https://github.com/mscheltienne))
 
 ## [1.17.1] - 2025-10-13
+⚠️ **YANKED:** This release was yanked from PyPI on 2025-10-27 due to a severe regression regarding effective sampling frequency and clock segments calculation. Please use version v1.17.0 or v1.17.2 or later (when available) instead.
+
 ### Added
 - Add new `case_sensitive` parameter to `match_streaminfos`, defaulting to `True` to maintain previous behavior; when `False`, stream properties are matched more leniently ([#134](https://github.com/xdf-modules/pyxdf/pull/134) by [Stefan Appelhoff](https://github.com/sappelhoff))
 - Expose detected clock segments (used in synchronisation) as `stream["info"]["clock_segments"]` ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))

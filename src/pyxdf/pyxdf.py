@@ -739,8 +739,9 @@ def _detect_breaks(stream, threshold_seconds=1.0, threshold_samples=500):
         b_breaks : 1D bool array representing breaks between values.
     """
     diffs = np.diff(stream.time_stamps)
-    b_breaks = (diffs < 0) | (
-        diffs > np.max((threshold_seconds, threshold_samples * stream.tdiff))
+
+    b_breaks = np.abs(diffs) > np.max(
+        (threshold_seconds, threshold_samples * stream.tdiff)
     )
     return b_breaks
 

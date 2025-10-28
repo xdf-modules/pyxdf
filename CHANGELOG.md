@@ -1,6 +1,7 @@
 ## [UNRELEASED] - YYYY-MM-DD
 ### Fixed
 - Fix `UserWarning` emitted by `numpy.divide` in NumPy 2.4+ ([#146](https://github.com/xdf-modules/pyxdf/pull/146) by [Mathieu Scheltienne](https://github.com/mscheltienne))
+- Fix segment detection at negative time intervals by considering the absolute time difference ([#140](https://github.com/xdf-modules/pyxdf/pull/140) by [Benedikt Ehinger](https://github.com/behinger) and [Jamie Forth](https://github.com/jamieforth))
 
 ## [1.17.1] - 2025-10-13
 ⚠️ **YANKED:** This release was yanked from PyPI on 2025-10-27 due to a severe regression regarding effective sampling frequency and clock segments calculation. Please use version v1.17.0 or v1.17.2 or later (when available) instead.

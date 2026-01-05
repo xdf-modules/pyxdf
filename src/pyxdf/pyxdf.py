@@ -857,8 +857,8 @@ def _truncate_to_sample_count(temp, streams):
         footer_sample_count = int(streams[StreamId]["footer"]['info']['sample_count'][0])
         if footer_sample_count < len(stream.time_stamps):
             logger.warning("`sample_count` in footer for stream %s is smaller than actual number of samples.", StreamId)
-            stream.time_stamps = stream.time_stamps[:-1]
-            stream.time_series = stream.time_series[:-1]
+            stream.time_stamps = stream.time_stamps[:footer_sample_count]
+            stream.time_series = stream.time_series[:footer_sample_count]
             stream.clock_times = stream.clock_times[:-1]
             stream.clock_values = stream.clock_values[:-1]
     return temp

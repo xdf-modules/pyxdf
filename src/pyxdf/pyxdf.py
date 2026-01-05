@@ -130,7 +130,8 @@ def load_xdf(
         truncate_to_num_samples : Whether to remove the last time_series, time_stamps,
         and clock_offset entries. Irregularly sampled streams may have one
         additional bad sample at the end of the file, which can cause issues with
-        sync, see https://github.com/labstreaminglayer/pylsl/issues/67. (default: true)
+        sync, see https://github.com/labstreaminglayer/pylsl/issues/67. When this happens,
+        the stream footer contains the correct number of samples. (default: true)
 
         on_chunk : Function that is called for each chunk of data as it is being
           retrieved from the file; the function is allowed to modify the data (for

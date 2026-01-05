@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 import pytest
-from pyxdf.pyxdf import _clock_sync
+from pyxdf.pyxdf import _clock_sync, _truncate_to_num_samples
 
 from mock_data_stream import MockStreamData
 
@@ -571,3 +571,37 @@ def test_sync_clock_jumps_forward_backward_tdiffs(clock_offsets, tdiff, clock_td
     np.testing.assert_equal(streams[1].clock_times, clock_times)
     np.testing.assert_equal(streams[1].clock_values, clock_values)
     np.testing.assert_equal(streams[1].clock_segments, expected_clock_segments)
+
+
+@pytest.mark.parametrize(
+    ("truncate_to_num_samples", "extra_sample"),
+    [(True, True), (True, False), (False, True)],
+    )
+def test_truncate_to_num_samples(truncate_to_num_samples: bool, extra_sample: bool) -> None:
+    """Test the _truncate_to_num_samples function removes extra samples."""
+    n_samples = 10
+    streams = {1: {"footer": {"info": {"sample_count": [f"{n_samples}"]}}}}
+    time_stamps = np.linspace(0, 1, n_samples)
+    clock_times = np.linspace(0, 1, 2 * n_samples)
+    clock_values = np.zeros_like(clock_times)
+    if extra_sample:
+        time_stamps = np.append(time_stamps, 200)
+        clock_times = np.append(clock_times, 1000)
+        clock_values = np.append(clock_values, -5000.)
+    temp = {
+        1: MockStreamData(
+            time_stamps=time_stamps,
+            clock_times=clock_times.tolist(),
+            clock_values=clock_values.tolist(),
+        )
+    }
+    if truncate_to_num_samples:
+        temp = _truncate_to_num_samples(temp, streams)
+
+    temp = _clock_sync(temp)
+    if truncate_to_num_samples:
+        assert len(temp[1].time_stamps) == n_samples
+        np.testing.assert_equal(temp[1].time_stamps[:n_samples], time_stamps[:n_samples])
+    else:
+        with pytest.raises(AssertionError, match="Arrays are not equal"):
+            np.testing.assert_equal(temp[1].time_stamps[:n_samples], time_stamps[:n_samples])

@@ -80,6 +80,7 @@ def load_xdf(
     synchronize_clocks=True,
     handle_clock_resets=True,
     dejitter_timestamps=True,
+    truncate_to_num_samples=True,
     jitter_break_threshold_seconds=1,
     jitter_break_threshold_samples=500,
     clock_reset_threshold_seconds=5,
@@ -125,6 +126,11 @@ def load_xdf(
 
         dejitter_timestamps : Whether to perform jitter removal for regularly sampled
           streams. (default: true)
+
+        truncate_to_num_samples : Whether to remove the last time_series, time_stamps,
+        and clock_offset entries. Irregularly sampled streams may have one
+        additional bad sample at the end of the file, which can cause issues with
+        sync, see https://github.com/labstreaminglayer/pylsl/issues/67. (default: true)
 
         on_chunk : Function that is called for each chunk of data as it is being
           retrieved from the file; the function is allowed to modify the data (for
@@ -355,6 +361,11 @@ def load_xdf(
                 stream.time_series = []
             else:
                 stream.time_series = np.zeros((0, stream.nchns))
+
+    # Drop extraneous last sample
+    # see https://github.com/labstreaminglayer/pylsl/issues/67
+    if truncate_to_num_samples:
+        temp = _truncate_to_num_samples(temp, streams)
 
     # perform (fault-tolerant) clock synchronization if requested
     if synchronize_clocks:
@@ -829,6 +840,27 @@ def _robust_fit(A, y, rho=1, iters=1000):
         u = d - z
     x[0] -= x[1] * offset
     return x
+
+
+def _truncate_to_num_samples(temp, streams):
+    """Truncate streams to the number of samples specified in the footer.
+
+    Args:
+        temp : dict of StreamData objects, indexed by stream id
+        streams : dict of stream information, indexed by stream id
+
+    Returns:
+        temp : dict of StreamData objects, indexed by stream id
+    """
+    for StreamId, stream in temp.items():
+        footer_sample_count = int(streams[StreamId]["footer"]['info']['sample_count'][0])
+        if footer_sample_count < len(stream.time_stamps):
+            logger.warning("`sample_count` in footer for stream %s is smaller than actual number of samples.", StreamId)
+            stream.time_stamps = stream.time_stamps[:-1]
+            stream.time_series = stream.time_series[:-1]
+            stream.clock_times = stream.clock_times[:-1]
+            stream.clock_values = stream.clock_values[:-1]
+    return temp
 
 
 def match_streaminfos(stream_infos, parameters, *, case_sensitive=True):

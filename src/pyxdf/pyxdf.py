@@ -80,7 +80,7 @@ def load_xdf(
     synchronize_clocks=True,
     handle_clock_resets=True,
     dejitter_timestamps=True,
-    truncate_to_num_samples=True,
+    truncate_to_sample_count=True,
     jitter_break_threshold_seconds=1,
     jitter_break_threshold_samples=500,
     clock_reset_threshold_seconds=5,
@@ -127,7 +127,7 @@ def load_xdf(
         dejitter_timestamps : Whether to perform jitter removal for regularly sampled
           streams. (default: true)
 
-        truncate_to_num_samples : Whether to remove the last time_series, time_stamps,
+        truncate_to_sample_count : Whether to remove the last time_series, time_stamps,
         and clock_offset entries. Irregularly sampled streams may have one
         additional bad sample at the end of the file, which can cause issues with
         sync, see https://github.com/labstreaminglayer/pylsl/issues/67. When this happens,
@@ -365,8 +365,8 @@ def load_xdf(
 
     # Drop extraneous last sample
     # see https://github.com/labstreaminglayer/pylsl/issues/67
-    if truncate_to_num_samples:
-        temp = _truncate_to_num_samples(temp, streams)
+    if truncate_to_sample_count:
+        temp = _truncate_to_sample_count(temp, streams)
 
     # perform (fault-tolerant) clock synchronization if requested
     if synchronize_clocks:
@@ -843,7 +843,7 @@ def _robust_fit(A, y, rho=1, iters=1000):
     return x
 
 
-def _truncate_to_num_samples(temp, streams):
+def _truncate_to_sample_count(temp, streams):
     """Truncate streams to the number of samples specified in the footer.
 
     Args:

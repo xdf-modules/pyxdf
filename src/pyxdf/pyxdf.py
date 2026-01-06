@@ -593,7 +593,7 @@ def _detect_corrupted_clock_offset(
 ):
     """Detect if the last clock offset entry is statistically anomalous.
 
-    Checks whether the last clock offset entry shows anomalous values compared
+    Checks whether the last clock offset entry shows anomalous times or values compared
     to the rest of the sequence. Uses robust statistics (MAD - Median Absolute
     Deviation) to handle streams with naturally variable clock offsets.
 
@@ -662,7 +662,7 @@ def _truncate_corrupted_offsets(temp, streams):
 
     1. Always truncates samples to match the footer sample_count (the footer
        is authoritative).
-    2. Conservatively truncates the last clock offset only if it's
+    2. Only truncates the last clock offset only if it's
        statistically anomalous (see ``_detect_corrupted_clock_offset``).
 
     Args:

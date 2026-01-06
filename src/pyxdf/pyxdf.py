@@ -686,18 +686,18 @@ def _truncate_corrupted_offsets(temp, streams):
         # Only proceed if there's evidence of the pylsl#67 bug (extra sample).
         # If sample count matches, don't touch clock offsets - large jumps from
         # disconnect/reconnect are legitimate.
-        if len(stream.time_stamps) > footer_count:
-            logger.warning(
-                "Stream %s: sample count (%d) exceeds footer sample_count (%d), "
-                "truncating extra samples.",
-                stream_id,
-                len(stream.time_stamps),
-                footer_count,
-            )
-            stream.time_stamps = stream.time_stamps[:footer_count]
-            stream.time_series = stream.time_series[:footer_count]
-        else:
+        if len(stream.time_stamps) <= footer_count:
             continue
+
+        logger.warning(
+            "Stream %s: sample count (%d) exceeds footer sample_count (%d), "
+            "truncating extra samples.",
+            stream_id,
+            len(stream.time_stamps),
+            footer_count,
+        )
+        stream.time_stamps = stream.time_stamps[:footer_count]
+        stream.time_series = stream.time_series[:footer_count]
 
         # Truncate clock offset only if statistically anomalous
         if len(stream.clock_times) >= 3:

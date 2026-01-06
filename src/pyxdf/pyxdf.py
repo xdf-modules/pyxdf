@@ -647,7 +647,8 @@ def _detect_corrupted_clock_offset(
         value_zscore = 0.0
 
     # Flag as corrupted if EITHER condition is met
-    # (the bug typically causes both, but we're being conservative)
+    # (the bug typically causes both, but even one is enough since we already validate
+    # that there is a problem with the sample count as well)
     return time_ratio > time_thresh or value_zscore > value_thresh
 
 

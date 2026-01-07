@@ -3,12 +3,13 @@
 ![Python 3.9+](https://img.shields.io/badge/python-3.9+-green.svg)
 ![License](https://img.shields.io/github/license/xdf-modules/xdf-python)
 
-pyXDF
-=====
+# PyXDF
 
-pyXDF is a Python importer for [XDF](https://github.com/sccn/xdf) files.
+PyXDF is a Python importer for [XDF](https://github.com/sccn/xdf) files.
 
 ## Sample usage
+
+The following example loads `minimal.xdf` (which you can download from [here](https://raw.githubusercontent.com/xdf-modules/example-files/master/minimal.xdf) and prints and plots all markers: 
 
 ``` python
 import matplotlib.pyplot as plt
@@ -16,7 +17,7 @@ import numpy as np
 
 import pyxdf
 
-data, header = pyxdf.load_xdf("test.xdf")
+data, header = pyxdf.load_xdf("minimal.xdf")
 
 for stream in data:
     y = stream["time_series"]
@@ -35,13 +36,15 @@ for stream in data:
 plt.show()
 ```
 
-## CLI examples
+Note that you need to have `matplotlib` installed to run this example (which is not a dependency of PyXDF itself).
 
-`pyxdf` has a `cli` module with the following basic command line tools:
+## Command line interface (CLI)
 
-* `print_metadata` will enable a DEBUG logger to log read messages, then it will print basic metadata for each found stream.
+PyXDF has a command line interface (CLI) with the following commands:
+
+* `print_metadata` will print basic metadata for each found stream.
     * `python -m pyxdf.cli.print_metadata -f=/path/to/my.xdf`
-* `playback_lsl` will open an XDF file, then replay its data in an infinite loop, but using current timestamps. This is useful for prototyping online processing.
+* `playback_lsl` will open an XDF file, then replay its data in an infinite loop, but using current timestamps (this is useful for prototyping online processing):
     * `python -m pyxdf.cli.playback_lsl /path/to/my.xdf --loop`
 
 ## Installation
@@ -52,4 +55,4 @@ For the latest development version, use `pip install git+https://github.com/xdf-
 
 ## For maintainers
 
-A new release is automatically uploaded to PyPI. Therefore, as soon as a new release is created on GitHub (using a tag labeled e.g. `v1.16.3`), a PyPI package is created with the version number matching the release tag.
+As soon as a new release is created on GitHub (using a tag labeled e.g. `v1.16.3`), a [PyPI package](https://pypi.org/project/pyxdf/) is automatically created with the version number matching the release tag.

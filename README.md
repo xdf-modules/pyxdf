@@ -9,7 +9,7 @@ PyXDF is a Python importer for [XDF](https://github.com/sccn/xdf) files.
 
 ## Sample usage
 
-The following example loads `minimal.xdf` (which you can download from [here](https://raw.githubusercontent.com/xdf-modules/example-files/master/minimal.xdf) and prints and plots all markers: 
+The following example loads `minimal.xdf` (which you can download from [here](https://raw.githubusercontent.com/xdf-modules/example-files/master/minimal.xdf)) and prints/plots all markers: 
 
 ``` python
 import matplotlib.pyplot as plt

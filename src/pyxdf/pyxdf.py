@@ -639,6 +639,7 @@ def _detect_corrupted_clock_offset(
 
     # Scale MAD to be comparable to standard deviation (for normal distributions)
     # MAD * 1.4826 ≈ standard deviation
+    # See: https://en.wikipedia.org/wiki/Median_absolute_deviation#Relation_to_standard_deviation
     if mad > np.finfo(float).eps:
         value_zscore = np.abs(values[-1] - median_val) / (1.4826 * mad)
     else:

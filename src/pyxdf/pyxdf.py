@@ -356,6 +356,10 @@ def load_xdf(
             else:
                 stream.time_series = np.zeros((0, stream.nchns))
 
+    # detect and truncate corrupted clock offsets (pylsl#67 bug)
+    if synchronize_clocks:
+        temp = _truncate_corrupted_offsets(temp, streams)
+
     # perform (fault-tolerant) clock synchronization if requested
     if synchronize_clocks:
         logger.info("  performing clock synchronization...")
@@ -579,6 +583,138 @@ def _segment_clock_diff(diff, thresh_stds, thresh_secs):
     cond2 = diffs_shift_abs > thresh_secs
     b_break = cond1 & cond2
     return b_break
+
+
+def _detect_corrupted_clock_offset(
+    clock_times,
+    clock_values,
+    time_thresh=10.0,
+    value_thresh=10.0,
+):
+    """Detect if the last clock offset entry is statistically anomalous.
+
+    Checks whether the last clock offset entry shows anomalous times or values compared
+    to the rest of the sequence. Uses robust statistics (MAD - Median Absolute
+    Deviation) to handle streams with naturally variable clock offsets.
+
+    This function is used by ``_truncate_corrupted_offsets`` as part of the
+    detection logic for the pylsl#67 bug, but does not alone confirm the bug
+    since legitimate clock resets can also cause statistical anomalies.
+
+    Args:
+        clock_times : list of clock offset measurement times.
+        clock_values : list of clock offset values.
+        time_thresh : flag if last time interval exceeds this multiple of the
+            median interval. (default: 10.0)
+        value_thresh : flag if last value's MAD-based z-score exceeds this.
+            (default: 10.0)
+
+    Returns:
+        bool : True if the last clock offset is statistically anomalous.
+
+    See Also:
+        https://github.com/labstreaminglayer/pylsl/issues/67
+    """
+    times = np.asarray(clock_times)
+    values = np.asarray(clock_values)
+
+    # Need at least 3 offsets for meaningful statistics
+    if len(times) < 3:
+        return False
+
+    # Strategy 1: Detect anomalous time interval
+    intervals = np.diff(times)
+    median_interval = np.median(intervals[:-1])
+    last_interval = np.abs(intervals[-1])  # Use abs to catch backward jumps
+
+    if median_interval > 0:
+        time_ratio = last_interval / median_interval
+    else:
+        time_ratio = np.inf if last_interval > 0 else 1.0
+
+    # Strategy 2: Detect anomalous value using MAD (robust to outliers)
+    # MAD = Median Absolute Deviation from the median
+    median_val = np.median(values[:-1])
+    mad = np.median(np.abs(values[:-1] - median_val))
+
+    # Scale MAD to be comparable to standard deviation (for normal distributions)
+    # MAD * 1.4826 ≈ standard deviation
+    # See: https://en.wikipedia.org/wiki/Median_absolute_deviation#Relation_to_standard_deviation
+    if mad > np.finfo(float).eps:
+        value_zscore = np.abs(values[-1] - median_val) / (1.4826 * mad)
+    else:
+        # If MAD is essentially 0 (all values identical), we cannot reliably
+        # detect value anomalies. Rely on time ratio check alone.
+        value_zscore = 0.0
+
+    # Flag as corrupted if EITHER condition is met
+    # (the bug typically causes both, but even one is enough since we already validate
+    # that there is a problem with the sample count as well)
+    return time_ratio > time_thresh or value_zscore > value_thresh
+
+
+def _truncate_corrupted_offsets(temp, streams):
+    """Truncate extra samples and corrupted clock offsets (pylsl#67 bug).
+
+    The pylsl#67 bug occurs when an LSL outlet is destroyed while an inlet is
+    still connected, causing an extra sample with potentially garbage clock
+    offset values to be recorded.
+
+    This function:
+
+    1. Always truncates samples to match the footer sample_count (the footer
+       is authoritative).
+    2. Only truncates the last clock offset only if it's
+       statistically anomalous (see ``_detect_corrupted_clock_offset``).
+
+    Args:
+        temp : dict of StreamData objects indexed by stream ID.
+        streams : dict of stream info dicts indexed by stream ID.
+
+    Returns:
+        dict : the modified temp dictionary.
+
+    See Also:
+        https://github.com/labstreaminglayer/pylsl/issues/67
+    """
+    for stream_id, stream in temp.items():
+        footer = streams.get(stream_id, {}).get("footer", {}).get("info", {})
+        sample_count_str = footer.get("sample_count", [None])[0]
+        if sample_count_str is None:
+            continue
+        footer_count = int(sample_count_str)
+
+        # Only proceed if there's evidence of the pylsl#67 bug (extra sample).
+        # If sample count matches, don't touch clock offsets - large jumps from
+        # disconnect/reconnect are legitimate.
+        if len(stream.time_stamps) <= footer_count:
+            continue
+
+        logger.warning(
+            "Stream %s: sample count (%d) exceeds footer sample_count (%d), "
+            "truncating extra samples.",
+            stream_id,
+            len(stream.time_stamps),
+            footer_count,
+        )
+        stream.time_stamps = stream.time_stamps[:footer_count]
+        stream.time_series = stream.time_series[:footer_count]
+
+        # Truncate clock offset only if statistically anomalous
+        if len(stream.clock_times) >= 3:
+            is_corrupted = _detect_corrupted_clock_offset(
+                stream.clock_times, stream.clock_values
+            )
+            if is_corrupted:
+                logger.warning(
+                    "Stream %s: last clock offset is statistically anomalous, "
+                    "truncating (see pylsl#67).",
+                    stream_id,
+                )
+                stream.clock_times = stream.clock_times[:-1]
+                stream.clock_values = stream.clock_values[:-1]
+
+    return temp
 
 
 def _detect_clock_resets(

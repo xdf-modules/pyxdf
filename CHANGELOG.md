@@ -1,5 +1,6 @@
 ## [UNRELEASED] - YYYY-MM-DD
 ### Fixed
+- Fix clock synchronization corruption caused by garbage data when outlet closes before inlet ([#150] by [Jesse Livezey](https://github.com/JesseLivezey) and [Mathieu Scheltienne](https://github.com/mscheltienne))
 - Fix `UserWarning` emitted by `numpy.divide` in NumPy 2.4+ ([#146](https://github.com/xdf-modules/pyxdf/pull/146) by [Mathieu Scheltienne](https://github.com/mscheltienne))
 - Fix segment detection at negative time intervals by considering the absolute time difference ([#140](https://github.com/xdf-modules/pyxdf/pull/140) by [Benedikt Ehinger](https://github.com/behinger) and [Jamie Forth](https://github.com/jamieforth))
 

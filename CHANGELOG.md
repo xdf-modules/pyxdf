@@ -1,25 +1,22 @@
-## [UNRELEASED] - YYYY-MM-DD
-### Fixed
-- Fix clock synchronization corruption caused by garbage data when outlet closes before inlet ([#150] by [Jesse Livezey](https://github.com/JesseLivezey) and [Mathieu Scheltienne](https://github.com/mscheltienne))
-- Fix `UserWarning` emitted by `numpy.divide` in NumPy 2.4+ ([#146](https://github.com/xdf-modules/pyxdf/pull/146) by [Mathieu Scheltienne](https://github.com/mscheltienne))
-- Fix segment detection at negative time intervals by considering the absolute time difference ([#140](https://github.com/xdf-modules/pyxdf/pull/140) by [Benedikt Ehinger](https://github.com/behinger) and [Jamie Forth](https://github.com/jamieforth))
-
-## [1.17.1] - 2025-10-13
-⚠️ **YANKED:** This release was yanked from PyPI on 2025-10-27 due to a severe regression regarding effective sampling frequency and clock segments calculation. Please use version v1.17.0 or v1.17.2 or later (when available) instead.
-
+## [1.17.2] - 2026-01-07
 ### Added
 - Add new `case_sensitive` parameter to `match_streaminfos`, defaulting to `True` to maintain previous behavior; when `False`, stream properties are matched more leniently ([#134](https://github.com/xdf-modules/pyxdf/pull/134) by [Stefan Appelhoff](https://github.com/sappelhoff))
-- Expose detected clock segments (used in synchronisation) as `stream["info"]["clock_segments"]` ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
+- Expose detected clock segments (used in synchronization) as `stream["info"]["clock_segments"]` ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
 
 ### Changed
-- Segment at negative time intervals when dejittering ([#130](https://github.com/xdf-modules/pyxdf/pull/130) by [Jamie Forth](https://github.com/jamieforth))
-- Handle `LinAlgError` (with warning) during synchronisation ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
+- Segment at negative time intervals when dejittering by considering the absolute time difference ([#140](https://github.com/xdf-modules/pyxdf/pull/140) by [Benedikt Ehinger](https://github.com/behinger) and [Jamie Forth](https://github.com/jamieforth))
 
 ### Fixed
-- Ensure empty stream segments are initialised ([#129](https://github.com/xdf-modules/pyxdf/pull/129) by [Jamie Forth](https://github.com/jamieforth))
+- Ensure empty stream segments are initialized ([#129](https://github.com/xdf-modules/pyxdf/pull/129) by [Jamie Forth](https://github.com/jamieforth))
 - Uniformly calculate effective sample rate as `(len(time_stamps) - 1) / duration` ([#129](https://github.com/xdf-modules/pyxdf/pull/129) by [Jamie Forth](https://github.com/jamieforth))
-- Fix synchronisation for streams with clock resets and MAD calculation used in clock value segmentation ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
+- Handle `LinAlgError` (with warning) during synchronization ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
+- Fix synchronization for streams with clock resets and MAD calculation used in clock value segmentation ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
 - Fix file playback when not looping ([#136](https://github.com/xdf-modules/pyxdf/pull/136) by [Chadwick Boulay](https://github.com/cboulay))
+- Fix clock synchronization corruption caused by garbage data when outlet closes before inlet ([#150] by [Jesse Livezey](https://github.com/JesseLivezey) and [Mathieu Scheltienne](https://github.com/mscheltienne))
+- Fix `UserWarning` emitted by `numpy.divide` in NumPy 2.4+ ([#146](https://github.com/xdf-modules/pyxdf/pull/146) by [Mathieu Scheltienne](https://github.com/mscheltienne))
+
+## [1.17.1] - 2025-10-13
+⚠️ **YANKED:** This release was yanked from PyPI on 2025-10-27 due to a severe regression regarding effective sampling frequency and clock segments calculation.
 
 ## [1.17.0] - 2025-01-07
 ### Fixed

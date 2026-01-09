@@ -654,18 +654,23 @@ def _detect_corrupted_clock_offset(
 
 
 def _truncate_corrupted_offsets(temp, streams):
-    """Truncate extra samples and corrupted clock offsets (pylsl#67 bug).
+    """Truncate corrupted clock offsets and associated extra samples.
 
-    The pylsl#67 bug occurs when an LSL outlet is destroyed while an inlet is
-    still connected, causing an extra sample with potentially garbage clock
+    The pylsl#67, liblsl#246 bug occurs when an LSL outlet is destroyed while an inlet
+    is still connected, causing an extra sample with potentially garbage clock
     offset values to be recorded.
 
     This function:
 
-    1. Always truncates samples to match the footer sample_count (the footer
-       is authoritative).
-    2. Only truncates the last clock offset only if it's
-       statistically anomalous (see ``_detect_corrupted_clock_offset``).
+    1. Detects corrupted clock offsets using statistical analysis (see
+       ``_detect_corrupted_clock_offset``).
+    2. If a corrupted clock offset is found, truncates it.
+    3. If extra samples exist AND the clock offset was corrupted, truncates
+       the extra samples (they are likely garbage from the same bug).
+
+    Note: Extra samples alone (without corrupted clock offset) are NOT truncated,
+    as the footer sample_count may be incorrect due to race conditions in
+    liblsl/LabRecorder where final samples arrive after the footer is written.
 
     Args:
         temp : dict of StreamData objects indexed by stream ID.
@@ -678,41 +683,44 @@ def _truncate_corrupted_offsets(temp, streams):
         https://github.com/labstreaminglayer/pylsl/issues/67
     """
     for stream_id, stream in temp.items():
+        # First check for corrupted clock offset - this is the evidence of pylsl#67.
+        # If clock offset is not corrupted, we have no evidence of the bug and
+        # should not truncate anything (even if sample count exceeds footer).
+        clock_corrupted = False
+        if len(stream.clock_times) >= 3:
+            clock_corrupted = _detect_corrupted_clock_offset(
+                stream.clock_times, stream.clock_values
+            )
+
+        if not clock_corrupted:
+            continue  # No evidence of corruption → don't touch anything
+
+        # Corrupted clock offset detected → truncate it
+        logger.warning(
+            "Stream %s: last clock offset is statistically anomalous, "
+            "truncating (see pylsl#67, liblsl#246).",
+            stream_id,
+        )
+        stream.clock_times = stream.clock_times[:-1]
+        stream.clock_values = stream.clock_values[:-1]
+
+        # Now check if there are extra samples to truncate
         footer = streams.get(stream_id, {}).get("footer", {}).get("info", {})
         sample_count_str = footer.get("sample_count", [None])[0]
         if sample_count_str is None:
             continue
         footer_count = int(sample_count_str)
 
-        # Only proceed if there's evidence of the pylsl#67 bug (extra sample).
-        # If sample count matches, don't touch clock offsets - large jumps from
-        # disconnect/reconnect are legitimate.
-        if len(stream.time_stamps) <= footer_count:
-            continue
-
-        logger.warning(
-            "Stream %s: sample count (%d) exceeds footer sample_count (%d), "
-            "truncating extra samples.",
-            stream_id,
-            len(stream.time_stamps),
-            footer_count,
-        )
-        stream.time_stamps = stream.time_stamps[:footer_count]
-        stream.time_series = stream.time_series[:footer_count]
-
-        # Truncate clock offset only if statistically anomalous
-        if len(stream.clock_times) >= 3:
-            is_corrupted = _detect_corrupted_clock_offset(
-                stream.clock_times, stream.clock_values
+        if len(stream.time_stamps) > footer_count:
+            logger.warning(
+                "Stream %s: sample count (%d) exceeds footer sample_count (%d), "
+                "truncating extra samples.",
+                stream_id,
+                len(stream.time_stamps),
+                footer_count,
             )
-            if is_corrupted:
-                logger.warning(
-                    "Stream %s: last clock offset is statistically anomalous, "
-                    "truncating (see pylsl#67).",
-                    stream_id,
-                )
-                stream.clock_times = stream.clock_times[:-1]
-                stream.clock_values = stream.clock_values[:-1]
+            stream.time_stamps = stream.time_stamps[:footer_count]
+            stream.time_series = stream.time_series[:footer_count]
 
     return temp
 

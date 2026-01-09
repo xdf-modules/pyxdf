@@ -48,8 +48,14 @@ def test_no_truncation_when_sample_count_matches():
     assert temp[1].clock_values == orig_clock_values
 
 
-def test_sample_truncation_but_clock_offsets_preserved():
-    """Extra sample should be truncated, but normal clock offsets preserved."""
+def test_no_truncation_when_clock_offsets_normal():
+    """Extra samples should NOT be truncated when clock offsets are normal.
+
+    This tests the case where footer sample_count is off-by-1 due to race
+    conditions (e.g., final sample arrives after footer is written), but the
+    data is valid. Without evidence of corruption (corrupted clock offset),
+    the extra samples should be preserved.
+    """
     n_samples = 100
     n_offsets = 20
     clock_tdiff = 5
@@ -69,19 +75,65 @@ def test_sample_truncation_but_clock_offsets_preserved():
     # Footer says n_samples, but we have n_samples + 1
     streams = {1: {"footer": {"info": {"sample_count": [str(n_samples)]}}}}
 
-    # Store original clock offset values
+    # Store original values
+    orig_timestamps = temp[1].time_stamps.copy()
     orig_clock_times = temp[1].clock_times.copy()
     orig_clock_values = temp[1].clock_values.copy()
 
     # Apply truncation
     temp = _truncate_corrupted_offsets(temp, streams)
 
-    # Verify samples were truncated to footer count
-    assert len(temp[1].time_stamps) == n_samples
+    # Verify samples were NOT truncated (clock offsets are normal, no evidence
+    # of pylsl#67, liblsl#246 bug, so we keep the extra samples)
+    np.testing.assert_array_equal(temp[1].time_stamps, orig_timestamps)
+    assert len(temp[1].time_stamps) == n_samples + 1
 
-    # Verify clock offsets were NOT truncated (they are normal)
+    # Verify clock offsets were NOT truncated
     assert temp[1].clock_times == orig_clock_times
     assert temp[1].clock_values == orig_clock_values
+
+
+def test_corrupted_clock_offset_without_extra_samples():
+    """Corrupted clock offset should be truncated even without extra samples."""
+    n_samples = 100
+    n_offsets = 20
+    clock_tdiff = 5
+    clock_offset_value = -0.001  # Normal offset: -1ms
+
+    # Create stream with matching sample count but corrupted last clock offset
+    time_stamps = np.linspace(0, 100, n_samples)
+    clock_times = [i * clock_tdiff for i in range(n_offsets)]
+    clock_values = [clock_offset_value] * n_offsets
+
+    # Corrupt the last clock offset (mimics the real bug pattern)
+    clock_times.append(clock_times[-1] + 800000)  # Huge time jump
+    clock_values.append(-750000)  # Huge corrupted value
+
+    temp = {
+        1: MockStreamData(
+            time_stamps=time_stamps,
+            clock_times=clock_times,
+            clock_values=clock_values,
+        )
+    }
+    # Footer matches sample count (no extra samples)
+    streams = {1: {"footer": {"info": {"sample_count": [str(n_samples)]}}}}
+
+    # Store original timestamp values
+    orig_timestamps = temp[1].time_stamps.copy()
+
+    # Apply truncation
+    temp = _truncate_corrupted_offsets(temp, streams)
+
+    # Verify samples were NOT truncated (no extra samples)
+    np.testing.assert_array_equal(temp[1].time_stamps, orig_timestamps)
+
+    # Verify corrupted clock offset WAS removed
+    assert len(temp[1].clock_times) == n_offsets
+    assert len(temp[1].clock_values) == n_offsets
+
+    # Verify the remaining clock values are the original normal ones
+    assert all(v == clock_offset_value for v in temp[1].clock_values)
 
 
 def test_truncation_of_samples_and_corrupted_clock_offset():

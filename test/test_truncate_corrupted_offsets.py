@@ -93,21 +93,28 @@ def test_no_truncation_when_clock_offsets_normal():
     assert temp[1].clock_values == orig_clock_values
 
 
-def test_corrupted_clock_offset_without_extra_samples():
-    """Corrupted clock offset should be truncated even without extra samples."""
+def test_no_truncation_when_no_extra_samples():
+    """Anomalous clock offset should NOT be truncated without extra samples.
+
+    This tests the case where clock offsets look anomalous (e.g., due to
+    legitimate clock resets) but there are no extra samples. Without extra
+    samples, we have no evidence of the pylsl#67 bug, so we should not
+    truncate the clock offset.
+    """
     n_samples = 100
     n_offsets = 20
     clock_tdiff = 5
     clock_offset_value = -0.001  # Normal offset: -1ms
 
-    # Create stream with matching sample count but corrupted last clock offset
+    # Create stream with matching sample count but "anomalous" last clock offset
+    # This could be a legitimate clock reset, not pylsl#67 - liblsl#246 corruption
     time_stamps = np.linspace(0, 100, n_samples)
     clock_times = [i * clock_tdiff for i in range(n_offsets)]
     clock_values = [clock_offset_value] * n_offsets
 
-    # Corrupt the last clock offset (mimics the real bug pattern)
+    # Add an "anomalous" clock offset (could be legitimate clock reset)
     clock_times.append(clock_times[-1] + 800000)  # Huge time jump
-    clock_values.append(-750000)  # Huge corrupted value
+    clock_values.append(-750000)  # Huge value change
 
     temp = {
         1: MockStreamData(
@@ -119,21 +126,18 @@ def test_corrupted_clock_offset_without_extra_samples():
     # Footer matches sample count (no extra samples)
     streams = {1: {"footer": {"info": {"sample_count": [str(n_samples)]}}}}
 
-    # Store original timestamp values
+    # Store original values
     orig_timestamps = temp[1].time_stamps.copy()
+    orig_clock_times = temp[1].clock_times.copy()
+    orig_clock_values = temp[1].clock_values.copy()
 
     # Apply truncation
     temp = _truncate_corrupted_offsets(temp, streams)
 
-    # Verify samples were NOT truncated (no extra samples)
+    # Verify NOTHING was truncated (no extra samples = no evidence of pylsl#67)
     np.testing.assert_array_equal(temp[1].time_stamps, orig_timestamps)
-
-    # Verify corrupted clock offset WAS removed
-    assert len(temp[1].clock_times) == n_offsets
-    assert len(temp[1].clock_values) == n_offsets
-
-    # Verify the remaining clock values are the original normal ones
-    assert all(v == clock_offset_value for v in temp[1].clock_values)
+    assert temp[1].clock_times == orig_clock_times
+    assert temp[1].clock_values == orig_clock_values
 
 
 def test_truncation_of_samples_and_corrupted_clock_offset():

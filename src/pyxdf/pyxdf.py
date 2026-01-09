@@ -660,17 +660,20 @@ def _truncate_corrupted_offsets(temp, streams):
     is still connected, causing an extra sample with potentially garbage clock
     offset values to be recorded.
 
-    This function:
+    This function requires BOTH conditions to confirm the pylsl#67, liblsl#246 bug:
 
-    1. Detects corrupted clock offsets using statistical analysis (see
+    1. Extra samples exist (sample count exceeds footer sample_count).
+    2. The last clock offset is statistically anomalous (see
        ``_detect_corrupted_clock_offset``).
-    2. If a corrupted clock offset is found, truncates it.
-    3. If extra samples exist AND the clock offset was corrupted, truncates
-       the extra samples (they are likely garbage from the same bug).
+
+    If both conditions are met, both the extra samples and the corrupted clock
+    offset are truncated.
 
     Note: Extra samples alone (without corrupted clock offset) are NOT truncated,
     as the footer sample_count may be incorrect due to race conditions in
     liblsl/LabRecorder where final samples arrive after the footer is written.
+    Similarly, anomalous clock offsets alone (without extra samples) are NOT
+    truncated, as they may be due to legitimate clock resets.
 
     Args:
         temp : dict of StreamData objects indexed by stream ID.
@@ -681,11 +684,25 @@ def _truncate_corrupted_offsets(temp, streams):
 
     See Also:
         https://github.com/labstreaminglayer/pylsl/issues/67
+        https://github.com/sccn/liblsl/issues/246
     """
     for stream_id, stream in temp.items():
-        # First check for corrupted clock offset - this is the evidence of pylsl#67.
-        # If clock offset is not corrupted, we have no evidence of the bug and
-        # should not truncate anything (even if sample count exceeds footer).
+        # First check if there are extra samples - this is the primary evidence
+        # of a potential pylsl#67, liblsl#246 bug.
+        footer = streams.get(stream_id, {}).get("footer", {}).get("info", {})
+        sample_count_str = footer.get("sample_count", [None])[0]
+        if sample_count_str is None:
+            continue
+        footer_count = int(sample_count_str)
+
+        if len(stream.time_stamps) <= footer_count:
+            continue  # No extra samples → no evidence of pylsl#67, liblsl#246
+
+        # Extra samples exist - now check if clock offset is also corrupted.
+        # We require BOTH conditions because:
+        # - Extra samples alone could be valid "late" data (footer off-by-1)
+        # - Anomalous clock offsets alone could be legitimate clock resets
+        # - Both together strongly indicate the pylsl#67, liblsl#246 bug
         clock_corrupted = False
         if len(stream.clock_times) >= 3:
             clock_corrupted = _detect_corrupted_clock_offset(
@@ -693,9 +710,9 @@ def _truncate_corrupted_offsets(temp, streams):
             )
 
         if not clock_corrupted:
-            continue  # No evidence of corruption → don't touch anything
+            continue  # Extra samples but normal clock offset → keep everything
 
-        # Corrupted clock offset detected → truncate it
+        # Both conditions met → truncate both
         logger.warning(
             "Stream %s: last clock offset is statistically anomalous, "
             "truncating (see pylsl#67, liblsl#246).",
@@ -704,23 +721,15 @@ def _truncate_corrupted_offsets(temp, streams):
         stream.clock_times = stream.clock_times[:-1]
         stream.clock_values = stream.clock_values[:-1]
 
-        # Now check if there are extra samples to truncate
-        footer = streams.get(stream_id, {}).get("footer", {}).get("info", {})
-        sample_count_str = footer.get("sample_count", [None])[0]
-        if sample_count_str is None:
-            continue
-        footer_count = int(sample_count_str)
-
-        if len(stream.time_stamps) > footer_count:
-            logger.warning(
-                "Stream %s: sample count (%d) exceeds footer sample_count (%d), "
-                "truncating extra samples.",
-                stream_id,
-                len(stream.time_stamps),
-                footer_count,
-            )
-            stream.time_stamps = stream.time_stamps[:footer_count]
-            stream.time_series = stream.time_series[:footer_count]
+        logger.warning(
+            "Stream %s: sample count (%d) exceeds footer sample_count (%d), "
+            "truncating extra samples.",
+            stream_id,
+            len(stream.time_stamps),
+            footer_count,
+        )
+        stream.time_stamps = stream.time_stamps[:footer_count]
+        stream.time_series = stream.time_series[:footer_count]
 
     return temp
 

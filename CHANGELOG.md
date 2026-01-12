@@ -1,5 +1,8 @@
 ## [UNRELEASED] - YYYY-MM-DD
 
+### Fixed
+- Improve detection and truncation of anomalous samples causing clock synchronization corruption ([#158] by [Mathieu Scheltienne](https://github.com/mscheltienne))
+
 ## [1.17.2] - 2026-01-07
 ### Added
 - Add new `case_sensitive` parameter to `match_streaminfos`, defaulting to `True` to maintain previous behavior; when `False`, stream properties are matched more leniently ([#134](https://github.com/xdf-modules/pyxdf/pull/134) by [Stefan Appelhoff](https://github.com/sappelhoff))

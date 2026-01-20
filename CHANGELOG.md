@@ -1,5 +1,4 @@
-## [UNRELEASED] - YYYY-MM-DD
-
+## [1.17.3] - 2026-01-20
 ### Fixed
 - Improve detection and truncation of anomalous samples causing clock synchronization corruption ([#158] by [Mathieu Scheltienne](https://github.com/mscheltienne))
 

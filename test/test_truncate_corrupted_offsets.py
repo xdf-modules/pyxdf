@@ -188,3 +188,26 @@ def test_truncation_of_samples_and_corrupted_clock_offset():
         expected_timestamps,
         atol=1e-6,
     )
+
+
+
+def test_no_crash_when_footer_info_is_none():
+    """Streams with empty footer info (None) should be skipped gracefully.
+
+    _xml2dict returns {"info": None} for empty XML elements like <info/>
+    or <info></info>. This must not crash _truncate_corrupted_offsets.
+    """
+    temp = {
+        1: MockStreamData(time_stamps=np.linspace(0, 100, 100)),
+        2: MockStreamData(time_stamps=np.linspace(0, 50, 50)),
+    }
+    streams = {
+        1: {"footer": {"info": {"sample_count": ["100"]}}},
+        2: {"footer": {"info": None}}
+    }
+
+    # Should not raise AttributeError
+    result = _truncate_corrupted_offsets(temp, streams)
+
+    # Stream 2 should be unchanged
+    assert len(result[2].time_stamps) == 50

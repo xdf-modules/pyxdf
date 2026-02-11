@@ -689,7 +689,7 @@ def _truncate_corrupted_offsets(temp, streams):
     for stream_id, stream in temp.items():
         # First check if there are extra samples - this is the primary evidence
         # of a potential pylsl#67, liblsl#246 bug.
-        footer = streams.get(stream_id, {}).get("footer", {}).get("info", {})
+        footer = streams.get(stream_id, {}).get("footer", {}).get("info") or {}
         sample_count_str = footer.get("sample_count", [None])[0]
         if sample_count_str is None:
             continue

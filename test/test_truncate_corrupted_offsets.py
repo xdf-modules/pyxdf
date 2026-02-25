@@ -190,7 +190,6 @@ def test_truncation_of_samples_and_corrupted_clock_offset():
     )
 
 
-
 def test_no_crash_when_footer_info_is_none():
     """Streams with empty footer info (None) should be skipped gracefully.
 
@@ -203,7 +202,7 @@ def test_no_crash_when_footer_info_is_none():
     }
     streams = {
         1: {"footer": {"info": {"sample_count": ["100"]}}},
-        2: {"footer": {"info": None}}
+        2: {"footer": {"info": None}},
     }
 
     # Should not raise AttributeError

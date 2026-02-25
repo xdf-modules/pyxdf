@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
-from pyxdf.pyxdf import _jitter_removal
-
 from mock_data_stream import MockStreamData
+
+from pyxdf.pyxdf import _jitter_removal
 
 
 @pytest.mark.parametrize(
@@ -133,3 +133,47 @@ def test_jitter_removal_with_jitter(t_start, t_end):
     )
     np.testing.assert_equal(stream.time_series[:, 0], time_stamps)
     np.testing.assert_allclose(stream.effective_srate, srate)
+
+
+def test_jitter_removal_can_drop_samples_preserves_timing():
+    srate = 90
+    tdiff = 1 / srate
+
+    # Simulate regular frame drops in a nominally regular stream. Applying linear
+    # dejittering to this data would wrongly compress dropped-frame intervals and shift
+    # the start too early.
+    n_samples_nominal = 1800
+    nominal = np.arange(n_samples_nominal) * tdiff
+    keep_mask = np.ones(n_samples_nominal, dtype=bool)
+    keep_mask[::5] = False
+    time_stamps = nominal[keep_mask]
+
+    streams = {1: MockStreamData(time_stamps=time_stamps, srate=srate, tdiff=tdiff)}
+    stream_headers = {
+        1: {
+            "info": {
+                "desc": [
+                    {
+                        "synchronization": [
+                            {
+                                "can_drop_samples": ["true"],
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+
+    _jitter_removal(
+        streams,
+        threshold_seconds=1,
+        threshold_samples=500,
+        stream_headers=stream_headers,
+    )
+
+    stream = streams[1]
+    assert stream.segments == [(0, len(time_stamps) - 1)]
+    np.testing.assert_allclose(stream.time_stamps, time_stamps, atol=1e-14)
+    np.testing.assert_equal(stream.time_series[:, 0], time_stamps)
+    assert stream.effective_srate < srate

@@ -380,6 +380,7 @@ def load_xdf(
             temp,
             jitter_break_threshold_seconds,
             jitter_break_threshold_samples,
+            stream_headers=streams,
         )
     else:
         for stream in temp.values():
@@ -899,7 +900,37 @@ def _detect_breaks(stream, threshold_seconds=1.0, threshold_samples=500):
     return b_breaks
 
 
-def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
+def _stream_can_drop_samples(stream_meta):
+    """Return True if stream metadata indicates samples can be dropped."""
+    if not stream_meta:
+        return False
+
+    info = stream_meta.get("info", {})
+    desc = info.get("desc")
+    if not isinstance(desc, list) or len(desc) == 0 or not isinstance(desc[0], dict):
+        return False
+
+    synchronization = desc[0].get("synchronization")
+    if (
+        not isinstance(synchronization, list)
+        or len(synchronization) == 0
+        or not isinstance(synchronization[0], dict)
+    ):
+        return False
+
+    can_drop_samples = synchronization[0].get("can_drop_samples")
+    if not isinstance(can_drop_samples, list) or len(can_drop_samples) == 0:
+        return False
+
+    return str(can_drop_samples[0]).lower() == "true"
+
+
+def _jitter_removal(
+    streams,
+    threshold_seconds=1,
+    threshold_samples=500,
+    stream_headers=None,
+):
     for stream_id, stream in streams.items():
         stream.effective_srate = 0  # will be recalculated if possible
         nsamples = len(stream.time_stamps)
@@ -907,6 +938,19 @@ def _jitter_removal(streams, threshold_seconds=1, threshold_samples=500):
             if stream.srate == 0:
                 # Initialise default segment for irregular sampling rate streams
                 stream.segments.append((0, nsamples - 1))  # inclusive
+                continue
+
+            # Streams that can drop samples (e.g., video/HMD) should not undergo linear
+            # dejittering because it compresses dropped-frame intervals and can shift
+            # the segment start substantially earlier.
+            if _stream_can_drop_samples(
+                None if stream_headers is None else stream_headers.get(stream_id)
+            ):
+                stream.segments.append((0, nsamples - 1))  # inclusive
+                if nsamples > 1:
+                    duration = stream.time_stamps[-1] - stream.time_stamps[0]
+                    if duration > 0:
+                        stream.effective_srate = (nsamples - 1) / duration
                 continue
 
             # Find boundary breaks

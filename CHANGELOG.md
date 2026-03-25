@@ -1,6 +1,7 @@
 ## [UNRELEASED] - YYYY-MM-DD
 ### Fixed
 - Skip linear dejittering for streams flagged with `can_drop_samples` to prevent dropped-frame streams from being shifted too early in time ([#165](https://github.com/xdf-modules/xdf-Python/pull/165) by [Clemens Brunner](https://github.com/cbrnr))
+- Fix detection of clock sync corruption in additional cases ([#167](https://github.com/xdf-modules/xdf-Python/pull/167) by [Alin G. Chitu](https://github.com/agchitu))
 
 ## [1.17.3] - 2026-01-20
 ### Fixed

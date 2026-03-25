@@ -855,12 +855,8 @@ def _clock_sync(
                         current_end_t = clock_times[range_i[1]]
                         next_start_t = clock_times[stop]
                         cond = np.less(
-                            np.abs(
-                                stream.time_stamps[ts_start:] - current_end_t
-                            ),
-                            np.abs(
-                                stream.time_stamps[ts_start:] - next_start_t
-                            ),
+                            np.abs(stream.time_stamps[ts_start:] - current_end_t),
+                            np.abs(stream.time_stamps[ts_start:] - next_start_t),
                         )
                         if all(cond):
                             ts_stop = ts_start + len(cond)

@@ -1,10 +1,11 @@
 ## [UNRELEASED] - YYYY-MM-DD
 ### Fixed
 - Skip linear dejittering for streams flagged with `can_drop_samples` to prevent dropped-frame streams from being shifted too early in time ([#165](https://github.com/xdf-modules/xdf-Python/pull/165) by [Clemens Brunner](https://github.com/cbrnr))
+- Fix detection of clock sync corruption in additional cases ([#167](https://github.com/xdf-modules/xdf-Python/pull/167) by [Alin G. Chitu](https://github.com/agchitu))
 
 ## [1.17.3] - 2026-01-20
 ### Fixed
-- Improve detection and truncation of anomalous samples causing clock synchronization corruption ([#158] by [Mathieu Scheltienne](https://github.com/mscheltienne))
+- Improve detection and truncation of anomalous samples causing clock synchronization corruption ([#158](https://github.com/xdf-modules/xdf-Python/pull/158) by [Mathieu Scheltienne](https://github.com/mscheltienne))
 
 ## [1.17.2] - 2026-01-07
 ### Added
@@ -20,7 +21,7 @@
 - Handle `LinAlgError` (with warning) during synchronization ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
 - Fix synchronization for streams with clock resets and MAD calculation used in clock value segmentation ([#131](https://github.com/xdf-modules/pyxdf/pull/131) by [Jamie Forth](https://github.com/jamieforth))
 - Fix file playback when not looping ([#136](https://github.com/xdf-modules/pyxdf/pull/136) by [Chadwick Boulay](https://github.com/cboulay))
-- Fix clock synchronization corruption caused by garbage data when outlet closes before inlet ([#150] by [Jesse Livezey](https://github.com/JesseLivezey) and [Mathieu Scheltienne](https://github.com/mscheltienne))
+- Fix clock synchronization corruption caused by garbage data when outlet closes before inlet ([#150](https://github.com/xdf-modules/xdf-Python/pull/150) by [Jesse Livezey](https://github.com/JesseLivezey) and [Mathieu Scheltienne](https://github.com/mscheltienne))
 - Fix `UserWarning` emitted by `numpy.divide` in NumPy 2.4+ ([#146](https://github.com/xdf-modules/pyxdf/pull/146) by [Mathieu Scheltienne](https://github.com/mscheltienne))
 
 ## [1.17.1] - 2025-10-13

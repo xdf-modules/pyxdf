@@ -854,21 +854,22 @@ def _clock_sync(
                         # clock-time than the end of the current clock segment
                         current_end_t = clock_times[range_i[1]]
                         next_start_t = clock_times[stop]
-                        ts_stop = ts_start + (
-                            np.argmin(
-                                np.less(
-                                    np.abs(
-                                        stream.time_stamps[ts_start:] - current_end_t
-                                    ),
-                                    np.abs(
-                                        stream.time_stamps[ts_start:] - next_start_t
-                                    ),
-                                )
-                            ).item()
+                        cond = np.less(
+                            np.abs(
+                                stream.time_stamps[ts_start:] - current_end_t
+                            ),
+                            np.abs(
+                                stream.time_stamps[ts_start:] - next_start_t
+                            ),
                         )
+                        if all(cond):
+                            ts_stop = ts_start + len(cond)
+                        else:
+                            ts_stop = ts_start + np.argmin(cond).item()
                     else:
                         # Include all time-stamps from the last break until the end
                         ts_stop = len(stream.time_stamps)
+
                     if ts_start == ts_stop:
                         logger.warning(
                             (

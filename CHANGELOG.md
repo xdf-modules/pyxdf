@@ -1,4 +1,6 @@
 ## [UNRELEASED] - YYYY-MM-DD
+### Fixed
+- Fix `playback_lsl.py` for cases where no metadata is available in the to-be-streamed XDF file ([#160] by [Stefan Appelhoff](https://github.com/sappelhoff))
 
 ## [1.17.3] - 2026-01-20
 ### Fixed

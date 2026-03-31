@@ -27,16 +27,16 @@ def _create_info_from_xdf_stream_header(header):
             _acq = _desc["acquisition"][0]
             acq = desc.append_child("acquisition")
             for k in ["manufacturer", "model", "precision", "compensated_lag"]:
-                if k in _acq:
-                    acq.append_child_value(k, _acq[k][0])
+                if k in _acq and _acq[k][0] is not None:
+                    acq.append_child_value(k, str(_acq[k][0]))
         if "channels" in _desc:
             _chans = _desc["channels"][0]
             chans = desc.append_child("channels")
             for _ch in _chans["channel"]:
                 ch = chans.append_child("channel")
                 for k in ["label", "unit", "type", "scaling_factor"]:
-                    if k in _ch:
-                        ch.append_child_value(k, _ch[k][0])
+                    if k in _ch and _ch[k][0] is not None:
+                        ch.append_child_value(k, str(_ch[k][0]))
                 # loc = ch.append_child("location")
                 # for dim_ix, dim in enumerate(["X", "Y", "Z"]):
                 #     loc.append_child_value(dim, str(elec_coords[ch_ix, dim_ix]))

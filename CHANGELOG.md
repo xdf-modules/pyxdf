@@ -1,6 +1,6 @@
 ## [UNRELEASED] - YYYY-MM-DD
 ### Changed
-- Precompute the little-endian sample dtype once per stream instead of per sample in `_read_chunk3`, speeding up loading of large numeric streams (~8% faster on a 553k-sample, 99-channel EEG recording) with byte-identical output ([#PR] by [Stefan Appelhoff](https://github.com/sappelhoff))
+- Precompute the little-endian sample dtype once per stream instead of per sample in `_read_chunk3`, speeding up loading of large numeric streams (~8% faster on a 553k-sample, 99-channel EEG recording) with byte-identical output ([#170](https://github.com/xdf-modules/pyxdf/pull/170) by [Stefan Appelhoff](https://github.com/sappelhoff))
 
 ### Fixed
 - Fix `playback_lsl.py` for cases where no metadata is available in the to-be-streamed XDF file ([#160] by [Stefan Appelhoff](https://github.com/sappelhoff))

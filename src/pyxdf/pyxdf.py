@@ -68,6 +68,9 @@ class StreamData:
         # pre-calc some parsing parameters for efficiency
         if self.fmt != "string":
             self.dtype = np.dtype(fmts[self.fmt])
+            # little-endian view of the dtype, precomputed once because it is used
+            # once per sample in _read_chunk3 (XDF sample data is little-endian)
+            self.dtype_le = self.dtype.newbyteorder("<")
             # number of bytes to read from stream to handle one sample
             self.samplebytes = self.nchns * self.dtype.itemsize
 
@@ -478,9 +481,7 @@ def _read_chunk3(f, s):
             # read the values
             f.readinto(raw)
             # no fromfile(), see https://github.com/numpy/numpy/issues/13319
-            values[k, :] = np.frombuffer(
-                raw, dtype=s.dtype.newbyteorder("<"), count=s.nchns
-            )
+            values[k, :] = np.frombuffer(raw, dtype=s.dtype_le, count=s.nchns)
     return nsamples, stamps, values
 
 

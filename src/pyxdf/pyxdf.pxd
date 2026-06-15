@@ -7,7 +7,7 @@ cdef class StreamData:
     cdef readonly int nchns, samplebytes
     cdef readonly fmt
     cdef public double effective_srate
-    cdef public time_stamps, time_series, clock_times, clock_values, dtype, fmts
+    cdef public time_stamps, time_series, clock_times, clock_values, dtype, dtype_le, fmts
 
 cdef bytearray _read_varlen_int_buf
 

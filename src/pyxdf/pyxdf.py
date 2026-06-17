@@ -695,7 +695,7 @@ def _truncate_corrupted_offsets(temp, streams):
         sample_count_str = footer.get("sample_count", [None])[0]
         if sample_count_str is None:
             continue
-        footer_count = int(sample_count_str)
+        footer_count = int(float(sample_count_str))  # can be with .0 suffix
 
         if len(stream.time_stamps) <= footer_count:
             continue  # No extra samples → no evidence of pylsl#67, liblsl#246

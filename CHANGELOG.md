@@ -1,4 +1,6 @@
 ## [UNRELEASED] - YYYY-MM-DD
+### Fixed
+- Fix conversion to `int` for `sample_count` in XDF footer ([#173](https://github.com/xdf-modules/pyxdf/pull/173) by [Clemens Brunner](https://github.com/cbrnr))
 
 ## [1.17.5] - 2026-06-15
 ### Changed

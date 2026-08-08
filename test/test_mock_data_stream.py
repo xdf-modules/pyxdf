@@ -172,9 +172,7 @@ def test_mock_stream_timeseries_defaults(fmt):
     if fmt == "string":
         assert all(isinstance(sample, list) for sample in stream.time_series)
         assert all(
-            isinstance(value, str)
-            for sample in stream.time_series
-            for value in sample
+            isinstance(value, str) for sample in stream.time_series for value in sample
         )
         np.testing.assert_allclose(
             np.array(stream.time_series, dtype=np.float64)[:, 0], time_stamps

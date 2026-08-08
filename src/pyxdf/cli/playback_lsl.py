@@ -220,9 +220,7 @@ def main(
                             )
                     read_heads[streamer.name] = stop_idx
 
-            if not loop and all(
-                t_stop >= streamer.tvec[-1] for streamer in streamers
-            ):
+            if not loop and all(t_stop >= streamer.tvec[-1] for streamer in streamers):
                 print("Playback finished.")
                 break
             timer.sleep()

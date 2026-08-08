@@ -130,12 +130,14 @@ def test_minimal_file(synchronize_clocks):
     # Time-series data
     s = [
         [
-            '<?xml version="1.0"?><info><writer>LabRecorder xdfwriter'
-            "</writer><first_timestamp>5.1</first_timestamp><last_timestamp>"
-            "5.9</last_timestamp><sample_count>9</sample_count>"
-            "<clock_offsets><offset><time>50979.76</time><value>-.01</value>"
-            "</offset><offset><time>50979.86</time><value>-.02</value>"
-            "</offset></clock_offsets></info>"
+            (
+                '<?xml version="1.0"?><info><writer>LabRecorder xdfwriter'
+                "</writer><first_timestamp>5.1</first_timestamp><last_timestamp>"
+                "5.9</last_timestamp><sample_count>9</sample_count>"
+                "<clock_offsets><offset><time>50979.76</time><value>-.01</value>"
+                "</offset><offset><time>50979.86</time><value>-.02</value>"
+                "</offset></clock_offsets></info>"
+            )
         ],
         ["Hello"],
         ["World"],
@@ -165,7 +167,7 @@ def test_minimal_file(synchronize_clocks):
 @pytest.mark.skipif("minimal" not in files, reason="File not found.")
 def test_minimal_file_segments(jitter_break_threshold_seconds):
     path = files["minimal"]
-    streams, header = load_xdf(
+    streams, _ = load_xdf(
         path,
         dejitter_timestamps=True,
         jitter_break_threshold_seconds=jitter_break_threshold_seconds,

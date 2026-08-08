@@ -2,7 +2,6 @@ from contextlib import nullcontext
 
 import numpy as np
 import pytest
-
 from mock_data_stream import MockStreamData
 
 
@@ -153,7 +152,7 @@ def test_mock_stream_timeseries_defaults(fmt):
     srate = 1
     tdiff = 1
     # Time-stamps should be returned as a float64 array
-    time_stamps = list(range(0, 10))
+    time_stamps = list(range(10))
     clock_times = [0]
     clock_values = [-10]
     stream = MockStreamData(
@@ -171,13 +170,11 @@ def test_mock_stream_timeseries_defaults(fmt):
     assert np.isdtype(stream.time_stamps.dtype, np.float64)
     np.testing.assert_equal(stream.time_stamps, time_stamps)
     if fmt == "string":
-        assert all([isinstance(sample, list) for sample in stream.time_series])
+        assert all(isinstance(sample, list) for sample in stream.time_series)
         assert all(
-            [
-                isinstance(value, str)
-                for sample in stream.time_series
-                for value in sample
-            ]
+            isinstance(value, str)
+            for sample in stream.time_series
+            for value in sample
         )
         np.testing.assert_allclose(
             np.array(stream.time_series, dtype=np.float64)[:, 0], time_stamps

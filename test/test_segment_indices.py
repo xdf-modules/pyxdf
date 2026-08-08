@@ -2,6 +2,7 @@ import itertools
 
 import numpy as np
 import pytest
+
 from pyxdf.pyxdf import _find_segment_indices
 
 
@@ -35,12 +36,12 @@ def test_segments(b_breaks, expected):
             (
                 size,
                 n_breaks,
-                list(itertools.combinations(range(0, size), n_breaks)),
+                list(itertools.combinations(range(size), n_breaks)),
             )
             # All sequences of length 3 to 5, continuing from the tests above.
             for size in range(3, 6)
             # All numbers of breaks between 0 and size
-            for n_breaks in range(0, size + 1)
+            for n_breaks in range(size + 1)
         ]
         for breaks in [np.array(breaks, dtype=int) for breaks in breaks_list]
     ],

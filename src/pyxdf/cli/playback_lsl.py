@@ -2,7 +2,6 @@ import argparse
 import sys
 import time
 from dataclasses import dataclass
-from typing import List, Optional
 
 import numpy as np
 import pylsl
@@ -58,7 +57,7 @@ class LSLPlaybackClock:
         self,
         rate: float = 1.0,
         loop_time: float = 0.0,
-        max_sample_rate: Optional[float] = None,
+        max_sample_rate: float | None = None,
     ):
         """
         Create an object that tracks file playback time at optional non-realtime rate.
@@ -126,7 +125,7 @@ class LSLPlaybackClock:
     def t0(self) -> float:
         return self._wall_start + self._n_loop * self._boundary
 
-    def sleep(self, duration: Optional[float] = None) -> None:
+    def sleep(self, duration: float | None = None) -> None:
         if duration is None:
             if self._max_srate <= 0:
                 duration = 0.005
@@ -163,7 +162,7 @@ def main(
                 wrap_dur = max(wrap_dur, tvec[-1] - tvec[0] + 1 / srate)
 
     # Create list of Streamer objects
-    streamers: List[Streamer] = []
+    streamers: list[Streamer] = []
     for strm_ix, strm in enumerate(streams):
         tvec = strm["time_stamps"]
         srate = float(strm["info"]["nominal_srate"][0])
@@ -222,7 +221,7 @@ def main(
                     read_heads[streamer.name] = stop_idx
 
             if not loop and all(
-                [t_stop >= streamer.tvec[-1] for streamer in streamers]
+                t_stop >= streamer.tvec[-1] for streamer in streamers
             ):
                 print("Playback finished.")
                 break

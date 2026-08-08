@@ -32,7 +32,7 @@ class MockStreamData:
         srate=None,
         tdiff=None,
         fmt="float64",
-        time_stamps=[],
+        time_stamps=None,
         time_series=None,
         clock_times=None,
         clock_values=None,
@@ -50,6 +50,8 @@ class MockStreamData:
         self.srate = srate
         self.tdiff = tdiff
         self.fmt = fmt
+        if time_stamps is None:
+            time_stamps = []
         # Ensure time_stamps is always a float64 array
         self.time_stamps = np.array(time_stamps, dtype="float64")
         # Use time_stamps as time_series data if no time_series data are provided
@@ -67,16 +69,16 @@ class MockStreamData:
         else:
             # Validate time_series data
             if fmt == "string":
-                if not all([isinstance(sample, list) for sample in time_series]):
+                if not all(isinstance(sample, list) for sample in time_series):
                     raise ValueError("All string samples must be lists of strings")
                 if not all(
-                    [len(sample) == len(time_series[0]) for sample in time_series]
+                    len(sample) == len(time_series[0]) for sample in time_series
                 ):
                     raise ValueError(
                         "All samples must have the same number of channels"
                     )
                 if not all(
-                    [isinstance(x, str) for sample in time_series for x in sample]
+                    isinstance(x, str) for sample in time_series for x in sample
                 ):
                     raise ValueError("All string sample values must be strings")
                 self.time_series = time_series
@@ -91,7 +93,7 @@ class MockStreamData:
         if clock_times is not None:
             if not isinstance(clock_times, list):
                 raise ValueError("Clock times must be a list")
-            if not all([isinstance(time, numbers.Number) for time in clock_times]):
+            if not all(isinstance(time, numbers.Number) for time in clock_times):
                 raise ValueError("All clock times must be numeric")
             self.clock_times = clock_times
         else:
@@ -99,15 +101,17 @@ class MockStreamData:
         if clock_values is not None:
             if not isinstance(clock_values, list):
                 raise ValueError("Clock values must be a list")
-            if not all([isinstance(value, numbers.Number) for value in clock_values]):
+            if not all(isinstance(value, numbers.Number) for value in clock_values):
                 raise ValueError("All clock values must be numeric")
             self.clock_values = clock_values
         else:
             self.clock_values = []
-        if clock_times is not None and clock_values is not None:
-            # If both clock_times and clock_values are provided they must be the same
-            # length
-            if len(clock_times) != len(clock_values):
-                raise ValueError("Clock times and values must be the same length")
+        # If both clock_times and clock_values are provided they must be the same length
+        if (
+            clock_times is not None
+            and clock_values is not None
+            and len(clock_times) != len(clock_values)
+        ):
+            raise ValueError("Clock times and values must be the same length")
         self.segments = []
         self.clock_segments = []

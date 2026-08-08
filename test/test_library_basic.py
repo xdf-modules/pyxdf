@@ -8,15 +8,12 @@ import pyxdf.pyxdf
 
 # %% test
 def test_load_xdf_present():
-    """
-    Check that pyxdf has the all important load_xdf.
-    This is nothing more than a placeholder so the CI system has a test to pass.
-    """
+    """Check that pyxdf has the all important load_xdf."""
     assert hasattr(pyxdf, "load_xdf")
 
 
 def test_read_varlen_int():
-    """"""
+    """Check that _read_varlen_int decodes 1-, 4-, and 8-byte integers."""
 
     def vla(data: bytes):
         return pyxdf.pyxdf._read_varlen_int(io.BytesIO(data))

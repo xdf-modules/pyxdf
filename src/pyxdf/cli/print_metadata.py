@@ -14,7 +14,7 @@ def main(fname: str):
     logging.basicConfig(level=logging.DEBUG)  # Use logging.INFO to reduce output
     streams, _ = pyxdf.load_xdf(fname)
 
-    print("Found {} streams:".format(len(streams)))
+    print(f"Found {len(streams)} streams:")
     for ix, stream in enumerate(streams):
         msg = (
             "Stream {}: {} - type {} - uid {} - shape {} in {} segments at {} "
@@ -34,7 +34,7 @@ def main(fname: str):
         )
         if any(stream["time_stamps"]):
             duration = stream["time_stamps"][-1] - stream["time_stamps"][0]
-            print("\tDuration: {} s".format(duration))
+            print(f"\tDuration: {duration} s")
     print("Done.")
 
 

@@ -2,14 +2,14 @@ import logging
 
 import numpy as np
 import pytest
-from pyxdf.pyxdf import _clock_sync
-
 from mock_data_stream import MockStreamData
+
+from pyxdf.pyxdf import _clock_sync
 
 # No clock resets
 
 
-@pytest.mark.parametrize("n_clock_offsets", list(range(0, 5)))
+@pytest.mark.parametrize("n_clock_offsets", list(range(5)))
 @pytest.mark.parametrize("handle_clock_resets", [True, False])
 def test_sync_empty_stream(n_clock_offsets, handle_clock_resets):
     time_stamps = []
@@ -35,7 +35,7 @@ def test_sync_empty_stream(n_clock_offsets, handle_clock_resets):
     np.testing.assert_equal(streams[1].clock_segments, [])
 
 
-@pytest.mark.parametrize("n_time_stamps", list(range(0, 5)))
+@pytest.mark.parametrize("n_time_stamps", list(range(5)))
 @pytest.mark.parametrize("handle_clock_resets", [True, False])
 def test_sync_empty_offsets(n_time_stamps, handle_clock_resets):
     tdiff = 1

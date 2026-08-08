@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
-from pyxdf.pyxdf import _detect_breaks
-
 from mock_data_stream import MockStreamData
+
+from pyxdf.pyxdf import _detect_breaks
 
 # Segment at absolute time-intervals exceeding a given threshold. Sequences of
 # identical absolute intervals should be segmented the same regardless of

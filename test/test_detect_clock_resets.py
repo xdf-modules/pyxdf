@@ -1,15 +1,15 @@
 import numpy as np
 import pytest
-from pyxdf.pyxdf import _detect_clock_resets
-
 from mock_data_stream import MockStreamData
+
+from pyxdf.pyxdf import _detect_clock_resets
 
 # Test error condition
 
 
 @pytest.mark.parametrize("n_clock_offsets", [0, 1])
 def test_detect_resets_length_error(n_clock_offsets):
-    clock_times = list(range(0, n_clock_offsets))
+    clock_times = list(range(n_clock_offsets))
     clock_values = [0] * n_clock_offsets
     stream = MockStreamData(
         clock_times=clock_times,

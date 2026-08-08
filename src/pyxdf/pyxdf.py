@@ -76,8 +76,8 @@ class StreamData:
             self.samplebytes = self.nchns * self.dtype.itemsize
 
 
-def _scoped_log_level(func):
-    """Restore the logger level afterwards, so ``verbose`` only affects the call.
+def verbose(func):
+    """Apply the ``verbose`` argument of ``func`` to the logger for that call only.
 
     Without this, passing ``verbose`` leaves the level set on the module logger for
     the rest of the process, overriding whatever the application configured and
@@ -85,17 +85,20 @@ def _scoped_log_level(func):
     """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, verbose=None, **kwargs):
+        if verbose is None:
+            return func(*args, verbose=verbose, **kwargs)
         level = logger.level
+        logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
         try:
-            return func(*args, **kwargs)
+            return func(*args, verbose=verbose, **kwargs)
         finally:
             logger.setLevel(level)
 
     return wrapper
 
 
-@_scoped_log_level
+@verbose
 def load_xdf(
     filename,
     select_streams=None,
@@ -142,9 +145,9 @@ def load_xdf(
           - None: load all streams (default).
 
         verbose : Passing True will set logging level to DEBUG, False will set it to
-          WARNING, and None will use root logger level. (default: None) The level is
-          restored when the call returns, so it does not affect later calls or the
-          rest of the application.
+          WARNING, and None will use root logger level. The previous level is restored
+          before this function returns, so the setting does not affect later calls or
+          the rest of the application. (default: None)
 
         synchronize_clocks : Whether to enable clock synchronization based on
           ClockOffset chunks. (default: true)
@@ -223,9 +226,6 @@ def load_xdf(
     Examples:
         >>> streams, fileheader = load_xdf('myrecording.xdf')
     """
-    if verbose is not None:
-        logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
-
     logger.info("Importing XDF file %s..." % filename)
 
     # if select_streams is an int or a list of int, load only streams associated with

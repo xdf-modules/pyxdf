@@ -1,6 +1,7 @@
 ## [UNRELEASED] - YYYY-MM-DD
 ### Fixed
 - Fix conversion to `int` for `sample_count` in XDF footer ([#173](https://github.com/xdf-modules/pyxdf/pull/173) by [Clemens Brunner](https://github.com/cbrnr))
+- Restore the logger level after `load_xdf` returns, so passing `verbose` no longer overrides the calling application's logging configuration for the rest of the process ([#175](https://github.com/xdf-modules/pyxdf/pull/175) by [Stefan Appelhoff](https://github.com/sappelhoff))
 
 ## [1.17.5] - 2026-06-15
 ### Changed

@@ -10,6 +10,7 @@
 This function is closely following the load_xdf reference implementation.
 """
 
+import functools
 import gzip
 import io
 import itertools
@@ -75,6 +76,26 @@ class StreamData:
             self.samplebytes = self.nchns * self.dtype.itemsize
 
 
+def _scoped_log_level(func):
+    """Restore the logger level afterwards, so ``verbose`` only affects the call.
+
+    Without this, passing ``verbose`` leaves the level set on the module logger for
+    the rest of the process, overriding whatever the application configured and
+    breaking the documented meaning of ``verbose=None`` for every later call.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        level = logger.level
+        try:
+            return func(*args, **kwargs)
+        finally:
+            logger.setLevel(level)
+
+    return wrapper
+
+
+@_scoped_log_level
 def load_xdf(
     filename,
     select_streams=None,
@@ -121,7 +142,9 @@ def load_xdf(
           - None: load all streams (default).
 
         verbose : Passing True will set logging level to DEBUG, False will set it to
-          WARNING, and None will use root logger level. (default: None)
+          WARNING, and None will use root logger level. (default: None) The level is
+          restored when the call returns, so it does not affect later calls or the
+          rest of the application.
 
         synchronize_clocks : Whether to enable clock synchronization based on
           ClockOffset chunks. (default: true)

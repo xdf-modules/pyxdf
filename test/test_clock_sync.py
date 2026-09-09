@@ -571,3 +571,41 @@ def test_sync_clock_jumps_forward_backward_tdiffs(clock_offsets, tdiff, clock_td
     np.testing.assert_equal(streams[1].clock_times, clock_times)
     np.testing.assert_equal(streams[1].clock_values, clock_values)
     np.testing.assert_equal(streams[1].clock_segments, expected_clock_segments)
+
+
+@pytest.mark.parametrize(
+    "clock_times",
+    [
+        # Negative final clock time: always segmented
+        [1, 6, 11, -22],
+        # Positive final clock time: segmented only when value also glitches
+        [1, 6, 11, 22],
+    ],
+)
+def test_sync_clock_corrupt_final_offset(clock_times):
+    expected = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    # Time-stamps within valid clock regions
+    time_stamps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    clock_values = [4, 4, 4, 40]
+    streams = {
+        1: MockStreamData(
+            time_stamps=time_stamps,
+            clock_times=clock_times,
+            clock_values=clock_values,
+        )
+    }
+    _clock_sync(
+        streams,
+    )
+
+    np.testing.assert_allclose(
+        streams[1].time_stamps,
+        expected,
+        atol=1e-13,
+    )
+    np.testing.assert_equal(
+        streams[1].clock_segments,
+        [
+            (0, 9),
+        ],
+    )

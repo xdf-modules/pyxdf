@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
@@ -6,7 +9,8 @@ from mock_data_stream import MockStreamData
 
 from pyxdf.pyxdf import _clock_sync
 
-# No clock resets
+if TYPE_CHECKING:
+    from typing import Literal
 
 
 @pytest.mark.parametrize("n_clock_offsets", list(range(5)))
@@ -609,3 +613,36 @@ def test_sync_clock_corrupt_final_offset(clock_times):
             (0, 9),
         ],
     )
+
+
+@pytest.mark.parametrize("n_garbage_offsets", [1, 2])
+def test_sync_garbage_final_offsets_and_extra_sample(
+    n_garbage_offsets: Literal[1, 2],
+) -> None:
+    """Recording ending as reported in pylsl#67 must sync without dropping samples.
+
+    Destroying an outlet with liblsl <= 1.17.1 while it is recorded appends one extra
+    sample stamped at the outlet destruction time, and the last clock offsets can then
+    be corrupted (e.g. -771221s). LabRecorder stores offsets as ``time = now - offset``,
+    so a corrupted value shifts both the offset time and value. The corrupted offsets
+    must end up in their own clock segment without any samples.
+    """
+    offset = -0.001
+    clock_times = [1000 + 5 * i for i in range(20)]
+    clock_values = [offset] * 20
+    for i in range(n_garbage_offsets):
+        now = clock_times[19] + 5 * (i + 1)
+        clock_times.append(now + 771221.25)
+        clock_values.append(-771221.25)
+    # regular markers plus the extra sample pushed when the outlet was destroyed
+    time_stamps = np.append(np.arange(1000, 1095, 0.5), 1095.008)
+    streams = {
+        1: MockStreamData(
+            time_stamps=time_stamps,
+            clock_times=clock_times,
+            clock_values=clock_values,
+        )
+    }
+    _clock_sync(streams)
+    np.testing.assert_allclose(streams[1].time_stamps, time_stamps + offset, atol=1e-9)
+    np.testing.assert_equal(streams[1].clock_segments, [(0, len(time_stamps) - 1)])

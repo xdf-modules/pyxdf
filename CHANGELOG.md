@@ -2,6 +2,7 @@
 ### Fixed
 - Fix conversion to `int` for `sample_count` in XDF footer ([#173](https://github.com/xdf-modules/pyxdf/pull/173) by [Clemens Brunner](https://github.com/cbrnr))
 - Scope the log level set by `verbose` to the `load_xdf` call, so it no longer overrides the calling application's logging configuration for the rest of the process ([#175](https://github.com/xdf-modules/pyxdf/pull/175) by [Stefan Appelhoff](https://github.com/sappelhoff))
+- Stop truncating samples beyond the footer `sample_count` and the last clock offset (introduced in [#150](https://github.com/xdf-modules/xdf-Python/pull/150) and [#158](https://github.com/xdf-modules/xdf-Python/pull/158)), which dropped valid samples; garbage clock offsets are handled by clock reset segmentation since [#167](https://github.com/xdf-modules/xdf-Python/pull/167) ([#176](https://github.com/xdf-modules/pyxdf/issues/176) by [Mathieu Scheltienne](https://github.com/mscheltienne))
 
 ## [1.17.5] - 2026-06-15
 ### Changed

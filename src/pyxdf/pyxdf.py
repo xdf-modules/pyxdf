@@ -74,6 +74,14 @@ class StreamData:
             self.dtype_le = self.dtype.newbyteorder("<")
             # number of bytes to read from stream to handle one sample
             self.samplebytes = self.nchns * self.dtype.itemsize
+            # layout of a sample with and without its time stamp, used in _read_chunk3
+            # to parse whole chunks at once
+            self.dtype_ts = np.dtype(
+                [("flag", "u1"), ("ts", "<f8"), ("vals", self.dtype_le, (self.nchns,))]
+            )
+            self.dtype_nots = np.dtype(
+                [("flag", "u1"), ("vals", self.dtype_le, (self.nchns,))]
+            )
 
 
 def verbose(func):
@@ -280,8 +288,9 @@ def load_xdf(
 
             # read [Tag]
             tag = struct.unpack("<H", f.read(2))[0]
-            log_str = " Read tag: {} at {} bytes, length={}"
-            log_str = log_str.format(tag, f.tell(), chunklen)
+            # only query the position and format the message when it is logged,
+            # because this runs once per chunk
+            log_str = " Read tag: %d at %d bytes, length=%d"
             StreamId = None
             if tag in [2, 3, 4, 6]:
                 _streamid = f.read(4)
@@ -297,13 +306,16 @@ def load_xdf(
                         ", StreamId is corrupt, scanning forward to next boundary "
                         "chunk."
                     )
-                    logger.error(log_str)
+                    pos = f.tell() - len(_streamid)
+                    logger.error(log_str, tag, pos, chunklen)
                     _scan_forward(f)
                     continue
                 else:
                     # to be executed if no exception was raised
-                    log_str += f", StreamId={StreamId}"
-                    logger.debug(log_str)
+                    if logger.isEnabledFor(logging.DEBUG):
+                        pos = f.tell() - len(_streamid)
+                        log_str += ", StreamId=%d"
+                        logger.debug(log_str, tag, pos, chunklen, StreamId)
 
             if (
                 StreamId is not None
@@ -332,8 +344,8 @@ def load_xdf(
                 # read [Samples] chunk...
                 # noinspection PyBroadException
                 try:
-                    nsamples, stamps, values = _read_chunk3(f, temp[StreamId])
-                    logger.debug(f"  reading [{temp[StreamId].nchns},{nsamples}]")
+                    nsamples, stamps, values = _read_chunk3(f, temp[StreamId], chunklen)
+                    logger.debug("  reading [%d,%d]", temp[StreamId].nchns, nsamples)
                     # optionally send through the on_chunk function
                     if on_chunk is not None:
                         values, stamps, streams[StreamId] = on_chunk(
@@ -466,12 +478,12 @@ def open_xdf(file):
     return f
 
 
-def _read_chunk3(f, s):
+def _read_chunk3(f, s, chunklen):
     # read [NumSampleBytes], [NumSamples]
     nsamples = _read_varlen_int(f)
-    # allocate space
-    stamps = np.zeros((nsamples,))
     if s.fmt == "string":
+        # allocate space
+        stamps = np.zeros((nsamples,))
         # read a sample comprised of strings
         values = [[None] * s.nchns for _ in range(nsamples)]
         # for each sample...
@@ -487,26 +499,106 @@ def _read_chunk3(f, s):
                 raw = f.read(_read_varlen_int(f))
                 values[k][ch] = raw.decode(errors="replace")
     else:
-        # read a sample comprised of numeric values
-        values = np.zeros((nsamples, s.nchns), dtype=s.dtype)
-        # read buffer
-        raw = bytearray(s.nchns * values.dtype.itemsize)
-        # for each sample...
-        for k in range(values.shape[0]):
-            # read or deduce time stamp
-            if f.read(1) != b"\x00":
-                stamps[k] = struct.unpack("<d", f.read(8))[0]
-            else:
-                stamps[k] = s.last_timestamp + s.tdiff
-            s.last_timestamp = stamps[k]
-            # read the values
-            f.readinto(raw)
-            # no fromfile(), see https://github.com/numpy/numpy/issues/13319
-            values[k, :] = np.frombuffer(raw, dtype=s.dtype_le, count=s.nchns)
+        # number of bytes left in the chunk after [Tag] (2 bytes), [StreamId] (4
+        # bytes), [NumSampleBytes] (1 byte), and [NumSamples] (as many bytes as
+        # _read_varlen_int just read into _read_varlen_int_buf)
+        nbytes = chunklen - 7 - _read_varlen_int_buf[0]
+        # each sample has a 1-byte flag, an optional 8-byte time stamp, and its values
+        if nsamples * (1 + s.samplebytes) <= nbytes <= nsamples * (9 + s.samplebytes):
+            buf = f.read(nbytes)
+            samples = None
+            if len(buf) == nbytes:
+                samples = _parse_numeric_samples(buf, nsamples, s)
+            if samples is None:
+                # the chunk length does not match the time stamp flags (or the file
+                # ends early), so go back and read the samples without relying on it
+                f.seek(-len(buf), io.SEEK_CUR)
+                samples = _read_numeric_samples(f, nsamples, s)
+            stamps, values = samples
+        else:
+            # the chunk length does not match the number of samples, so read the
+            # samples without relying on it
+            stamps, values = _read_numeric_samples(f, nsamples, s)
+        if nsamples:
+            s.last_timestamp = stamps[-1]
     return nsamples, stamps, values
 
 
+def _parse_numeric_samples(buf, nsamples, s):
+    """Parse the numeric samples of a chunk from its bytes.
+
+    Returns None if the time stamp flags do not match the number of bytes.
+    """
+    if len(buf) == nsamples * (9 + s.samplebytes):
+        # every sample has a time stamp
+        rec = np.frombuffer(buf, dtype=s.dtype_ts, count=nsamples)
+        if not rec["flag"].all():
+            return None
+        stamps = rec["ts"].astype(np.float64)
+        values = rec["vals"]
+    elif len(buf) == nsamples * (1 + s.samplebytes):
+        # no sample has a time stamp, so deduce them (summing sequentially like the
+        # per-sample code path)
+        rec = np.frombuffer(buf, dtype=s.dtype_nots, count=nsamples)
+        if rec["flag"].any():
+            return None
+        stamps = np.full(nsamples, s.tdiff)
+        stamps[0] += s.last_timestamp
+        np.cumsum(stamps, out=stamps)
+        values = rec["vals"]
+    else:
+        # only some samples have a time stamp, so walk through the samples in memory
+        stamps = []
+        parts = []
+        last_timestamp = s.last_timestamp
+        pos = 0
+        try:
+            for _ in range(nsamples):
+                if buf[pos]:
+                    last_timestamp = _unpack_timestamp(buf, pos + 1)[0]
+                    pos += 9
+                else:
+                    last_timestamp += s.tdiff
+                    pos += 1
+                stamps.append(last_timestamp)
+                parts.append(buf[pos : pos + s.samplebytes])
+                pos += s.samplebytes
+        except (IndexError, struct.error):  # ran past the end of the chunk
+            return None
+        if pos != len(buf):
+            return None
+        stamps = np.array(stamps)
+        values = np.frombuffer(b"".join(parts), dtype=s.dtype_le)
+        values = values.reshape(nsamples, s.nchns)
+    # copy into a writable array of the native dtype
+    return stamps, values.astype(s.dtype)
+
+
+def _read_numeric_samples(f, nsamples, s):
+    """Read the numeric samples of a chunk one by one."""
+    stamps = np.zeros((nsamples,))
+    values = np.zeros((nsamples, s.nchns), dtype=s.dtype)
+    # read buffer
+    raw = bytearray(s.samplebytes)
+    last_timestamp = s.last_timestamp
+    # for each sample...
+    for k in range(nsamples):
+        # read or deduce time stamp
+        if f.read(1) != b"\x00":
+            last_timestamp = struct.unpack("<d", f.read(8))[0]
+        else:
+            last_timestamp += s.tdiff
+        stamps[k] = last_timestamp
+        # read the values
+        if f.readinto(raw) < len(raw):
+            raise EOFError("unexpected end of file in samples chunk")
+        # no fromfile(), see https://github.com/numpy/numpy/issues/13319
+        values[k, :] = np.frombuffer(raw, dtype=s.dtype_le, count=s.nchns)
+    return stamps, values
+
+
 _read_varlen_int_buf = bytearray(1)
+_unpack_timestamp = struct.Struct("<d").unpack_from
 
 
 def _read_varlen_int(f):
@@ -832,11 +924,15 @@ def _jitter_removal(
             for start_i, stop_i in segments:
                 # Calculate time stamps assuming constant intervals within each segment
                 # (stop_i + 1 because we want inclusive closing range)
-                idx = np.arange(start_i, stop_i + 1, 1)[:, None]
-                X = np.concatenate((np.ones_like(idx), idx), axis=1)
-                y = stream.time_stamps[idx]
-                mapping = np.linalg.lstsq(X, y, rcond=-1)[0]
-                stream.time_stamps[idx] = mapping[0] + mapping[1] * idx
+                n = stop_i - start_i + 1
+                if n > 1:
+                    # Closed-form least-squares line fit on centered sample indices
+                    # (n * (n**2 - 1) / 12 is the sum of their squares)
+                    y = stream.time_stamps[start_i : stop_i + 1]
+                    idx = np.arange(n) - (n - 1) / 2
+                    y_mean = np.mean(y)
+                    slope = np.dot(idx, y - y_mean) / (n * (n**2 - 1) / 12)
+                    y[:] = y_mean + slope * idx
 
             # Recalculate effective_srate if possible
             counts = (stop_idx + 1) - start_idx
@@ -878,20 +974,20 @@ def _robust_fit(A, y, rho=1, iters=1000):
     A = np.copy(A)  # don't mutate input.
     offset = np.min(A[:, 1])
     A[:, 1] -= offset
-    Aty = np.dot(A.T, y)
     L = np.linalg.cholesky(np.dot(A.T, A))
-    U = L.T
-    z = np.zeros_like(y)
-    u = z
-    x = z
+    # the x-update solves (A'A) x = A'(y + z - u), so precompute (A'A)^-1 A'
+    P = np.linalg.solve(L.T, np.linalg.solve(L, A.T))
+    # the z-update is the Huber proximal operator, which makes the u-update
+    # u = d - z = clip(d, -thresh, thresh) / (1 + rho), so z - u = d - 2u
+    thresh = 1 + 1 / rho
+    u = np.zeros_like(y)
+    z_minus_u = np.zeros_like(y)
+    x = np.zeros(A.shape[1])
     for k in range(iters):
-        x = np.linalg.solve(U, (np.linalg.solve(L, Aty + np.dot(A.T, z - u))))
+        x = np.dot(P, y + z_minus_u)
         d = np.dot(A, x) - y + u
-        d_inv = np.zeros_like(d)
-        np.divide(1, d, out=d_inv, where=d != 0)
-        tmp = np.maximum(0, (1 - (1 + 1 / rho) * np.abs(d_inv)))
-        z = rho / (1 + rho) * d + 1 / (1 + rho) * tmp * d
-        u = d - z
+        u = np.clip(d, -thresh, thresh) / (1 + rho)
+        z_minus_u = d - 2 * u
     x[0] -= x[1] * offset
     return x
 

@@ -1,5 +1,12 @@
 ## [UNRELEASED] - YYYY-MM-DD
+### Changed
+- Speed up `load_xdf` by reading each numeric samples chunk at once instead of sample by sample (about 2.5–5x faster on typical EEG recordings with byte-identical time series), only formatting per-chunk debug messages when they are logged, and simplifying the jitter removal and robust clock offset fits ([#180](https://github.com/xdf-modules/pyxdf/pull/180) by [Clemens Brunner](https://github.com/cbrnr))
+
+### Removed
+- Remove the unused Cython declarations in `pyxdf.pxd`, which were never part of the build and no longer matched the code ([#180](https://github.com/xdf-modules/pyxdf/pull/180) by [Clemens Brunner](https://github.com/cbrnr))
+
 ### Fixed
+- Drop a numeric samples chunk that is cut off at the end of the file instead of returning its last sample filled with leftover values from the previous sample ([#180](https://github.com/xdf-modules/pyxdf/pull/180) by [Clemens Brunner](https://github.com/cbrnr))
 - Fix conversion to `int` for `sample_count` in XDF footer ([#173](https://github.com/xdf-modules/pyxdf/pull/173) by [Clemens Brunner](https://github.com/cbrnr))
 - Scope the log level set by `verbose` to the `load_xdf` call, so it no longer overrides the calling application's logging configuration for the rest of the process ([#175](https://github.com/xdf-modules/pyxdf/pull/175) by [Stefan Appelhoff](https://github.com/sappelhoff))
 - Stop truncating samples beyond the footer `sample_count` and the last clock offset (introduced in [#150](https://github.com/xdf-modules/xdf-Python/pull/150) and [#158](https://github.com/xdf-modules/xdf-Python/pull/158)), which dropped valid samples; garbage clock offsets are handled by clock reset segmentation since [#167](https://github.com/xdf-modules/xdf-Python/pull/167) ([#176](https://github.com/xdf-modules/pyxdf/issues/176) by [Mathieu Scheltienne](https://github.com/mscheltienne))

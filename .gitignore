@@ -107,10 +107,6 @@ uv.lock
 # PyCharm
 .idea
 
-# cython temporaries
-/src/pyxdf/pyxdf.c
-/src/pyxdf/pyxdf.html
-
 # Dynamic version file
 /src/pyxdf/__version__.py
 

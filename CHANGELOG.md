@@ -1,7 +1,7 @@
 ## [UNRELEASED] - YYYY-MM-DD
 ### Changed
 - Speed up `load_xdf` by reading each numeric samples chunk at once instead of sample by sample (about 2.5–5x faster on typical EEG recordings with byte-identical time series), only formatting per-chunk debug messages when they are logged, and simplifying the jitter removal and robust clock offset fits ([#180](https://github.com/xdf-modules/pyxdf/pull/180) by [Clemens Brunner](https://github.com/cbrnr))
-- Read the file only once when `select_streams` is a list of dicts ([#60](https://github.com/xdf-modules/pyxdf/issues/60) by [Clemens Brunner](https://github.com/cbrnr))
+- Read the file only once when `select_streams` is a list of dicts ([#181](https://github.com/xdf-modules/pyxdf/pull/181) by [Clemens Brunner](https://github.com/cbrnr))
 
 ### Removed
 - Remove the unused Cython declarations in `pyxdf.pxd`, which were never part of the build and no longer matched the code ([#180](https://github.com/xdf-modules/pyxdf/pull/180) by [Clemens Brunner](https://github.com/cbrnr))

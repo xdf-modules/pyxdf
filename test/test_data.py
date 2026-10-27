@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import pyxdf.pyxdf
 from pyxdf import load_xdf, match_streaminfos, resolve_streams
 
 # requires git clone https://github.com/xdf-modules/example-files.git into the root
@@ -36,6 +37,58 @@ def test_match_streaminfos():
     parameters = [{"name": "senddatastring"}]
     matches = match_streaminfos(stream_infos, parameters, case_sensitive=False)
     assert matches == [46202862]
+
+
+@pytest.mark.parametrize(
+    "select_streams, expected",
+    [
+        (46202862, [46202862]),
+        ([0], [0]),
+        ([46202862, 0], [0, 46202862]),
+        ([{"type": "EEG"}], [0]),
+        ([{"name": "SendDataString", "type": "StringMarker"}], [46202862]),
+        ([{"name": "SendDataString", "type": "EEG"}], []),
+        ([{"type": "EEG"}, {"name": "SendDataString"}], [0, 46202862]),
+        ([{"channel_count": 3}], [0]),
+    ],
+)
+@pytest.mark.skipif("minimal" not in files, reason="File not found.")
+def test_select_streams(select_streams, expected, monkeypatch):
+    """Test loading only selected streams, reading the file only once."""
+    path = files["minimal"]
+    all_streams, _ = load_xdf(path)
+    all_streams = {s["info"]["stream_id"]: s for s in all_streams}
+
+    calls = []
+    open_xdf = pyxdf.pyxdf.open_xdf
+    monkeypatch.setattr(
+        pyxdf.pyxdf, "open_xdf", lambda f: calls.append(f) or open_xdf(f)
+    )
+    if not expected:
+        with pytest.raises(ValueError, match="No matching streams found"):
+            load_xdf(path, select_streams=select_streams)
+        assert len(calls) == 1
+        return
+    streams, _ = load_xdf(path, select_streams=select_streams)
+    assert len(calls) == 1
+    assert [s["info"]["stream_id"] for s in streams] == expected
+    for stream in streams:
+        expected_stream = all_streams[stream["info"]["stream_id"]]
+        assert stream["info"] == expected_stream["info"]
+        assert stream["footer"] == expected_stream["footer"]
+        np.testing.assert_array_equal(
+            stream["time_stamps"], expected_stream["time_stamps"]
+        )
+        np.testing.assert_array_equal(
+            stream["time_series"], expected_stream["time_series"]
+        )
+
+
+@pytest.mark.skipif("minimal" not in files, reason="File not found.")
+def test_select_streams_invalid():
+    """Test that invalid select_streams values raise an error."""
+    with pytest.raises(ValueError, match="must be an int"):
+        load_xdf(files["minimal"], select_streams=["EEG"])
 
 
 @pytest.mark.parametrize("synchronize_clocks", [False, True])

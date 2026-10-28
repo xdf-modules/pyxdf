@@ -1,4 +1,9 @@
 ## [UNRELEASED] - YYYY-MM-DD
+### Added
+- Add support for Python 3.15 ([#184](https://github.com/xdf-modules/pyxdf/pull/184) by [Clemens Brunner](https://github.com/cbrnr))
+
+### Removed
+- Drop support for Python 3.10, which has reached end of life ([#184](https://github.com/xdf-modules/pyxdf/pull/184) by [Clemens Brunner](https://github.com/cbrnr))
 
 ## [1.18.0] - 2026-10-28
 ### Changed

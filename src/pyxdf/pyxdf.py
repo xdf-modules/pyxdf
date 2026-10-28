@@ -16,7 +16,7 @@ import io
 import itertools
 import logging
 import struct
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from pathlib import Path
 from xml.etree.ElementTree import ParseError, fromstring
 
@@ -258,7 +258,7 @@ def load_xdf(
         )
 
     # dict of returned streams, in order of appearance, indexed by stream id
-    streams = OrderedDict()
+    streams = {}
     # dict of per-stream temporary data (StreamData), indexed by stream id
     temp = {}
     # XML content of the file header chunk
@@ -442,8 +442,7 @@ def load_xdf(
             if len(stream.time_stamps) > 0:
                 stream.segments.append((0, len(stream.time_stamps) - 1))  # inclusive
 
-    for k in streams:
-        stream = streams[k]
+    for k, stream in streams.items():
         tmp = temp[k]
         if "stream_id" in stream["info"]:  # this is non-standard
             logger.warning(

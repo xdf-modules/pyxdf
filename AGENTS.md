@@ -2,7 +2,7 @@
 
 ## Overview
 
-PyXDF is a Python importer for [XDF](https://github.com/sccn/xdf) (Extensible Data Format) files. It is a small, pure-Python package (requires Python 3.10+, depends only on NumPy) published on PyPI.
+PyXDF is a Python importer for [XDF](https://github.com/sccn/xdf) (Extensible Data Format) files. It is a small, pure-Python package (requires Python 3.11+, depends only on NumPy) published on PyPI.
 
 ## Layout
 
@@ -22,7 +22,7 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-CI runs the format check and the tests on Python 3.10 to 3.14, so avoid syntax or APIs newer than 3.10.
+CI runs the format check and the tests on Python 3.11 to 3.15, so avoid syntax or APIs newer than 3.11.
 
 ## Conventions
 

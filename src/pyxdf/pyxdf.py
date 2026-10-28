@@ -239,16 +239,19 @@ def load_xdf(
     # if select_streams is an int or a list of int, load only streams associated with
     # the corresponding stream IDs
     # if select_streams is a list of dicts, use this to query and load streams
-    # associated with these properties
+    # associated with these properties; matching happens when each stream header is
+    # read, so that the file is only traversed once
+    query = None
     if select_streams is None:
         pass
     elif isinstance(select_streams, int):
-        select_streams = [select_streams]
+        select_streams = {select_streams}
     elif all(isinstance(elem, dict) for elem in select_streams):
-        select_streams = match_streaminfos(resolve_streams(filename), select_streams)
-        if not select_streams:  # no streams found
-            raise ValueError("No matching streams found.")
-    elif not all(isinstance(elem, int) for elem in select_streams):
+        query = select_streams
+        select_streams = set()  # filled with matching stream IDs while reading
+    elif all(isinstance(elem, int) for elem in select_streams):
+        select_streams = set(select_streams)
+    else:
         raise ValueError(
             "Argument 'select_streams' must be an int, a list of ints, or a list of "
             "dicts."
@@ -321,6 +324,7 @@ def load_xdf(
                 StreamId is not None
                 and select_streams is not None
                 and StreamId not in select_streams
+                and not (tag == 2 and query is not None)  # header decides selection
             ):
                 f.read(chunklen - 2 - 4)  # skip remaining chunk contents
                 continue
@@ -335,7 +339,13 @@ def load_xdf(
                 # read [Content]
                 xml_string = f.read(chunklen - 6)
                 decoded_string = xml_string.decode("utf-8", "replace")
-                hdr = _xml2dict(fromstring(decoded_string))
+                xml = fromstring(decoded_string)
+                if query is not None:
+                    info = _streaminfo(StreamId, _parse_streamheader(xml))
+                    if not match_streaminfos([info], query):
+                        continue
+                    select_streams.add(StreamId)
+                hdr = _xml2dict(xml)
                 streams[StreamId] = hdr
                 logger.debug("  found stream " + hdr["info"]["name"][0])
                 # initialize per-stream temp data
@@ -379,6 +389,9 @@ def load_xdf(
             else:
                 # skip other chunk types (Boundary, ...)
                 f.read(chunklen - 2)
+
+    if query is not None and not streams:
+        raise ValueError("No matching streams found.")
 
     # Concatenate the signal across chunks
     for stream in temp.values():
@@ -1073,23 +1086,25 @@ def parse_chunks(chunks):
     streams = []
     for chunk in chunks:
         if chunk["tag"] == 2:  # stream header chunk
-            # if you edit, check for consistency with parsing in load_xdf
-            streams.append(
-                {
-                    "stream_id": chunk["stream_id"],
-                    "name": chunk.get("name"),  # optional
-                    "type": chunk.get("type"),  # optional
-                    "source_id": chunk.get("source_id"),  # optional
-                    "created_at": chunk.get("created_at"),  # optional
-                    "uid": chunk.get("uid"),  # optional
-                    "session_id": chunk.get("session_id"),  # optional
-                    "hostname": chunk.get("hostname"),  # optional
-                    "channel_count": int(chunk["channel_count"]),
-                    "channel_format": chunk["channel_format"],
-                    "nominal_srate": float(chunk["nominal_srate"]),
-                }
-            )
+            streams.append(_streaminfo(chunk["stream_id"], chunk))
     return streams
+
+
+def _streaminfo(stream_id, header):
+    """Create stream info (as used by match_streaminfos) from parsed header fields."""
+    return {
+        "stream_id": stream_id,
+        "name": header.get("name"),  # optional
+        "type": header.get("type"),  # optional
+        "source_id": header.get("source_id"),  # optional
+        "created_at": header.get("created_at"),  # optional
+        "uid": header.get("uid"),  # optional
+        "session_id": header.get("session_id"),  # optional
+        "hostname": header.get("hostname"),  # optional
+        "channel_count": int(header["channel_count"]),
+        "channel_format": header["channel_format"],
+        "nominal_srate": float(header["nominal_srate"]),
+    }
 
 
 def _read_chunks(f):

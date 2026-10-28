@@ -1,3 +1,5 @@
+## [UNRELEASED] - YYYY-MM-DD
+
 ## [1.18.0] - 2026-10-28
 ### Changed
 - Speed up `load_xdf` by reading each numeric samples chunk at once instead of sample by sample (about 2.5–5x faster on typical EEG recordings with byte-identical time series), only formatting per-chunk debug messages when they are logged, and simplifying the jitter removal and robust clock offset fits ([#180](https://github.com/xdf-modules/pyxdf/pull/180) by [Clemens Brunner](https://github.com/cbrnr))
